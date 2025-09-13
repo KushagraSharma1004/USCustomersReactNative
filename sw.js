@@ -1,8 +1,8 @@
 const CACHE_NAME = 'uscustomers-v1';
 const urlsToCache = [
   './',
-  './assets/images/icon.png',
-  './assets/images/favicon.png'
+  './assets/assets/images/icon.cb6d79d6afb462751d1256193eb61a66.png',
+  './favicon.ico'
 ];
 
 // Install event - cache only essential resources
