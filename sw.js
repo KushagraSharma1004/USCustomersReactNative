@@ -1,26 +1,40 @@
 const CACHE_NAME = 'uscustomers-v1';
 const urlsToCache = [
   './',
-  './_expo/static/js/web/entry-*.js',
-  './_expo/static/css/web-*.css',
   './assets/images/icon.png',
   './assets/images/favicon.png'
 ];
 
-// Install event
+// Install event - cache only essential resources
 self.addEventListener('install', function(event) {
   console.log('Service Worker installing.');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(function(cache) {
         console.log('Opened cache');
-        return cache.addAll(urlsToCache);
+        // Cache each resource individually and handle failures
+        return Promise.all(
+          urlsToCache.map(function(url) {
+            return cache.add(url).catch(function(err) {
+              console.log('Failed to cache:', url, err);
+              // Don't reject the entire promise if one file fails
+              return Promise.resolve();
+            });
+          })
+        );
       })
   );
+  // Force the waiting service worker to become the active service worker
+  self.skipWaiting();
 });
 
-// Fetch event
+// Fetch event - serve from cache or network
 self.addEventListener('fetch', function(event) {
+  // Skip cross-origin requests
+  if (!event.request.url.startsWith(self.location.origin)) {
+    return;
+  }
+  
   event.respondWith(
     caches.match(event.request)
       .then(function(response) {
@@ -30,10 +44,9 @@ self.addEventListener('fetch', function(event) {
   );
 });
 
-// Activate event
+// Activate event - clean up old caches
 self.addEventListener('activate', function(event) {
   console.log('Service Worker activating.');
-  // Remove old caches
   event.waitUntil(
     caches.keys().then(function(cacheNames) {
       return Promise.all(
@@ -46,4 +59,6 @@ self.addEventListener('activate', function(event) {
       );
     })
   );
+  // Take control of all clients immediately
+  self.clients.claim();
 });
