@@ -64,27 +64,6 @@ const MyCart = () => {
     }
   };
 
-  const fetchVendorFullData = async () => {
-    if (!vendorMobileNumber || vendorMobileNumber.length !== 10) {
-      return;
-    }
-    try {
-      setIsCommonLoaderVisible(true)
-      const vendorRef = doc(db, 'users', vendorMobileNumber)
-      const vendorDocSnap = await getDoc(vendorRef)
-      if (!vendorDocSnap.exists()) {
-        return
-      }
-      const vendorData = vendorDocSnap.data()
-
-      setVendorFullData(vendorData)
-    } catch (error) {
-      console.log('Error fetching vendor details: ', error)
-    } finally {
-      setIsCommonLoaderVisible(false)
-    }
-  }
-
   const fetchVendorAddress = async () => {
     try {
       if (!vendorMobileNumber) {
@@ -127,7 +106,6 @@ const MyCart = () => {
 
   useEffect(() => {
     fetchVendorItemList()
-    // fetchVendorFullData()
     fetchVendorAddress()
   }, [vendorMobileNumber])
 
@@ -462,7 +440,8 @@ const MyCart = () => {
 
   if (isRatingModalVisible) {
     return (
-      <View className='flex-1 items-center justify-center' >
+      <Modal animate='heart-beat' visible={true} transparent={true}>
+      <View className='flex-1 items-center justify-center bg-[#00000060]' >
         <View className='w-[96%] p-[20px] rounded-[10px] bg-white items-center justify-center gap-[10px]' >
           <Text>How was your experience with</Text>
           <Text className='font-bold text-primary text-[15px]' >{vendorFullData?.businessName || ''}?</Text>
@@ -492,6 +471,7 @@ const MyCart = () => {
           </View>
         </View>
       </View>
+      </Modal>
     )
   }
 
@@ -508,6 +488,7 @@ const MyCart = () => {
   return (
     <View className='h-full w-full pt-[3px] gap-[3px]' >
       {isCommonLoaderVisible && <Loader />}
+
       {isOrderCommentModalVisible &&
         <Modal animationType='slide' >
           <View className='flex-1 bg-[#00000080] items-center justify-center' >
@@ -530,6 +511,7 @@ const MyCart = () => {
           </View>
         </Modal>
       }
+
       <View className='border-b-[5px] border-primary rounded-b-[10px] px-[10px] py-[5px] gap-[5px] bg-white' >
         {selectedDeliveryMode === 'homeDelivery' && <TouchableOpacity onPress={openAddressSheet} className='p-[5px] bg-primary rounded-[5px] absolute top-[0px] right-[5px] z-10' ><Text className='text-white' >Change</Text></TouchableOpacity>}
         {selectedDeliveryMode === 'homeDelivery' &&
@@ -553,6 +535,7 @@ const MyCart = () => {
             </View>
           </View>
         }
+        
         <View className='flex-row gap-[10px]'>
           {vendorFullData?.deliveryModes?.takeaway && (
             <TouchableOpacity

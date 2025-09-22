@@ -15,6 +15,7 @@ const TabsLayout = () => {
     const segments = useSegments();
     const { cartCount, cartTotal } = useCart();
     const isVendorsScreenOpen = segments.includes('Vendors');
+    const isMyCartScreenOpen = segments.includes('MyCart');
     const [isSubMenuModalVisible, setIsSubMenuModalVisible] = useState(false)
     const addressSheetRef = useRef(null)
     const snapPointsForAddressSheet = useMemo(() => [1, '90%'], [])
@@ -23,15 +24,15 @@ const TabsLayout = () => {
     const [selectedDeliveryMode, setSelectedDeliveryMode] = useState('selectADeliveryMode')
     const params = useGlobalSearchParams()
     const [customerMobileNumber, setCustomerMobileNumber] = useState(decryptData(localStorage.getItem('customerMobileNumber')) || '');
-      
-      useEffect(() => {
+
+    useEffect(() => {
         const interval = setInterval(() => {
-          const val = decryptData(localStorage.getItem('customerMobileNumber')) || '';
-          setCustomerMobileNumber(val);
+            const val = decryptData(localStorage.getItem('customerMobileNumber')) || '';
+            setCustomerMobileNumber(val);
         }, 500); // check every 500ms
-      
+
         return () => clearInterval(interval);
-      }, []);
+    }, []);
 
     const fetchVendorFullData = async () => {
         if (!vendorMobileNumber || vendorMobileNumber.length !== 10) {
@@ -91,7 +92,8 @@ const TabsLayout = () => {
                         headerShown: false,
                         tabBarActiveBackgroundColor: '#2874F0',
                         tabBarActiveTintColor: 'white',
-                        tabBarStyle: customerMobileNumber.length === 10 ?{
+                        // tabBarStyle: customerMobileNumber.length === 10 && (isMyCartScreenOpen ? cartCount !== 0 : true) ? {
+                            tabBarStyle: customerMobileNumber.length === 10 ? {
                             borderTopLeftRadius: 10,
                             borderTopRightRadius: 10,
                             borderTopWidth: 5,
@@ -99,7 +101,7 @@ const TabsLayout = () => {
                             height: 65,
                             paddingTop: 3,
                             paddingBottom: 3
-                        } : {display:"none"},
+                        } : { display: "none" },
                         tabBarItemStyle: {
                             borderRadius: 10,
                             marginHorizontal: 5, // optional spacing to see the rounded effect

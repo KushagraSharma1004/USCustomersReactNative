@@ -389,7 +389,7 @@ const Home = () => {
       {/* Vendors FlatList */}
       <View className={`${selectedCategoryId ? 'bg-primaryLight' : 'bg-white'} w-[98%] self-center rounded-[5px] flex-1`}>
         <FlatList
-          data={sortedVendors} // Now uses the sortedVendors which includes search filtering
+          data={sortedVendors.filter((vendor) => !vendor.disabled)} // Now uses the sortedVendors which includes search filtering
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingBottom: 50, width: '98%', alignSelf: 'center', paddingTop: 5 }}
           showsVerticalScrollIndicator
