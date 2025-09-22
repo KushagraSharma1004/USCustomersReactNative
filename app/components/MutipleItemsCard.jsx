@@ -7,6 +7,7 @@ const MultipleItemsCard = ({ item, innerIndex, cartItem, onAddToCart, onIncremen
     const [isItemImageModalVisible, setIsItemImageModalVisible] = useState(false)
     const [selectedImage, setSelectedImage] = useState(item?.images?.[0] || null)
     const quantity = cartItem?.quantity || 0;
+    const imageUri = item?.images?.[0];
 
     const mrp = item?.prices?.[0]?.mrp || 0;
     const sellingPrice = item?.prices?.[0]?.sellingPrice || 0;
@@ -36,7 +37,8 @@ const MultipleItemsCard = ({ item, innerIndex, cartItem, onAddToCart, onIncremen
             <Shadow distance={5} startColor={'rgba(0,0,0,0.1)'} offset={[0, 3]} style={{ borderRadius: 7 }}>
                 <TouchableOpacity onPress={() => { setIsItemImageModalVisible(true) }} >
                     <Image
-                        source={item?.images?.[0] ? { uri: item.images[0] } : require('../../assets/images/placeholderImage.png')}
+                        // source={item?.images?.[0] ? { uri: item.images[0] } : require('../../assets/images/placeholderImage.png')}
+                        source={imageUri ? { uri: imageUri } : require('../../assets/images/placeholderImage.png')}
                         className="rounded-[5px]"
                         style={{ height: 150, width: 150 }}
                     />
@@ -110,16 +112,19 @@ const MultipleItemsCard = ({ item, innerIndex, cartItem, onAddToCart, onIncremen
                     >
                         <Text className="text-center text-lg font-semibold text-black bg-white p-[5px] w-screen">{item?.name}</Text>
                         {/* Main Image */}
-                        <Image
-                            style={{ height: 300, width: 300 }}
-                            className="rounded-xl"
-                            source={selectedImage ? { uri: selectedImage } : require("../../assets/images/icon.png")}
-                            resizeMode="cover"
-                        />
+                        <Shadow distance={5} startColor={'rgba(0,0,0,0.1)'} offset={[0, 3]} style={{ borderRadius: 7 }}>
+                            <Image
+                                style={{ height: 300, width: 300 }}
+                                className="rounded-xl"
+                                source={selectedImage ? { uri: selectedImage } : require("../../assets/images/placeholderImage.png")}
+                                resizeMode="cover"
+                            />
+                        </Shadow>
 
                         {/* Thumbnails Row */}
                         <View className="w-full flex-row justify-between">
-                            {Array.from({ length: item?.images.length }).map((_, idx) => (
+                            {/* {Array.from({ length: item?.images.length }).map((_, idx) => ( */}
+                            {(item?.images && Array.isArray(item.images) ? item.images : []).map((imageUri, idx) => (
                                 <TouchableOpacity
                                     key={idx}
                                     className="w-[22.5%] "
