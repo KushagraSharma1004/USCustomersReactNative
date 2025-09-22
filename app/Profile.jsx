@@ -7,6 +7,7 @@ import { db } from '@/firebase'
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { v4 as uuidv4 } from 'uuid';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { useRouter } from 'expo-router';
 
 const EditButton = ({ isEditing, onPress }) => {
   if (isEditing === false) {
@@ -20,6 +21,7 @@ const EditButton = ({ isEditing, onPress }) => {
 const Profile = () => {
   const { customerFullData, customerAddress, customerMobileNumber, setCustomerFullData } = useAuth()
   const { openAddressSheet } = useAddressSheet()
+  const router = useRouter()
   const [isEditingBox1, setIsEditingBox1] = useState(false)
   const [isEditingBox2, setIsEditingBox2] = useState(false)
   const [newCustomerName, setNewCustomerName] = useState(customerFullData?.customerName)
@@ -171,11 +173,11 @@ const Profile = () => {
 
       <View className='p-[10px] border-b-[5px] border-primary rounded-[10px] bg-white gap-[5px]' >
         <View className='flex-row gap-[5px] justify-between' ><Text className='font-bold' >Mobile Number:</Text><Text>{customerFullData.customerMobileNumber}</Text></View>
-        <View className='flex-row gap-[5px] justify-between' ><Text className='font-bold' >Referral Code:</Text><Text>{customerFullData.referralCode || 'No referral code'}</Text></View>
+        <View className='flex-row gap-[5px] justify-between' ><Text className='font-bold' >Referral Code:</Text><Text>{customerFullData.customerReferralCode || 'No referral code'}</Text></View>
       </View>
 
       <View className='p-[10px] border-b-[5px] border-primary rounded-[10px] bg-white gap-[5px]' >
-        <TouchableOpacity className='p-[10px] rounded-[10px] bg-primary w-full' ><Text className='text-white font-bold text-[16px] text-center' >My Referrals</Text></TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push('/MyReferrals')} className='p-[10px] rounded-[10px] bg-primary w-full' ><Text className='text-white font-bold text-[16px] text-center' >My Referrals</Text></TouchableOpacity>
       </View>
 
       {showImagePickerOptions && (

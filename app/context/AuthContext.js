@@ -34,6 +34,7 @@ export const AuthProvider = ({ children }) => {
   const [allVendors, setAllVendors] = useState([])
   const [allOrders, setAllOrders] = useState(null)
   const [myVendors, setMyVendors] = useState(null)
+  const [customerReferrals, setCustomerReferrals] = useState(null)
   // Restore auth state from localStorage on mount
 
   useEffect(() => {
@@ -218,6 +219,17 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
+  const fetchCustomerReferrals = async () => {
+    try {
+      const customerReferralsRef = collection(db, 'customers', customerMobileNumber, 'myReferrals')
+      const customerReferralsSnap = await getDocs(customerReferralsRef)
+      const customerReferrals = customerReferralsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      setCustomerReferrals(customerReferrals)
+    } catch (error) {
+      console.log('Error fetching customer referrals: ', error)
+    }
+  }
+
   const logout = () => {
     setCustomerMobileNumber('');
     setCustomerPassword('');
@@ -237,6 +249,7 @@ export const AuthProvider = ({ children }) => {
     fetchAllCategoriesThoseHaveVendor();
     fetchAllVendors()
     fetchMyVendors()
+    fetchCustomerReferrals()
     // fetchAllOrders()
     const unsubscribeOrders = fetchAllOrders();
     return () => {
@@ -254,6 +267,7 @@ export const AuthProvider = ({ children }) => {
     fetchAllCategoriesThoseHaveVendor();
     fetchAllVendors();
     fetchMyVendors()
+    fetchCustomerReferrals()
     // fetchAllOrders()
     const unsubscribeOrders = fetchAllOrders();
     return () => {
@@ -280,7 +294,10 @@ export const AuthProvider = ({ children }) => {
     fetchAllOrders,
     myVendors,
     setMyVendors,
-    fetchMyVendors
+    fetchMyVendors,
+    customerReferrals,
+    setCustomerReferrals,
+    fetchCustomerReferrals
   };
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;

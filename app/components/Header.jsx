@@ -15,7 +15,7 @@ const Header = ({setIsMyVendorsListModalVisible}) => {
         <Text className='font-bold text-primary text-[15px]' >👋 {customerFullData?.customerName ?? 'Guest'}</Text>
         <TouchableOpacity className='flex-row gap-[2px] items-center' onPress={openAddressSheet}>
           <Text className='text-[22px]' >📍</Text>
-          <Text className='text-[13px]' >{customerAddress?.customerPlotNumber}, {customerAddress?.customerComplexNameOrBuildingName},  {customerAddress?.customerLandmark}, {customerAddress?.customerRoadNameOrStreetName}, {customerAddress?.customerVillageNameOrTownName}, {customerAddress?.customerCity}, {customerAddress?.customerState} - {customerAddress?.customerPincode}</Text>
+          <Text className='text-[13px]' >{customerAddress?.customerPlotNumber}, {customerAddress?.customerComplexNameOrBuildingName}, {customerAddress?.customerLandmark}, {customerAddress?.customerRoadNameOrStreetName}, {customerAddress?.customerVillageNameOrTownName}, {customerAddress?.customerCity}, {customerAddress?.customerState} - {customerAddress?.customerPincode}</Text>
         </TouchableOpacity>
       </View>
       <TouchableOpacity onPress={() => setIsMyVendorsListModalVisible(true)} className='items-center justify-center gap-[2px]'>

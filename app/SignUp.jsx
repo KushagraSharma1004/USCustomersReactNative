@@ -15,7 +15,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const SignUp = () => {
     const router = useRouter()
-    const { setCustomerMobileNumber, setCustomerPassword } = useAuth()
+    const { setCustomerMobileNumber, setCustomerPassword, setCustomerFullData } = useAuth()
     const params = useLocalSearchParams();
     const customerMobileNumberFromURL = params.customerMobileNumber || ''
     const [customerMobileNumber, setCustomerMobileNumberThisScreen] = useState('')
@@ -310,15 +310,19 @@ const SignUp = () => {
             setIsCommonLoaderVisible(true)
             const customerDocRef = doc(db, 'customers', customerMobileNumber);
             const customerDocSnap = await getDoc(customerDocRef);
+            const customerData = customerDocSnap.data();
+
             const isRegistrationPending = await fetchIfRegistrationPending()
             if (isRegistrationPending) {
                 setIsStep2Visible(true)
                 return;
             }
-            if (customerDocSnap.exists()) {
+
+            if (customerData?.customerName) {
                 setErrorMessage('Mobile number is already registered. Please login.');
                 return;
             }
+
             if (referralCode) {
                 let referralMatch = false;
                 if (referralCode) {
@@ -364,6 +368,7 @@ const SignUp = () => {
                     return;
                 }
             }
+
             setupRecaptcha();
             const appVerifier = window.recaptchaVerifier;
             const confirmation = await signInWithPhoneNumber(auth, `+91${customerMobileNumber}`, appVerifier);
@@ -399,33 +404,6 @@ const SignUp = () => {
 
                         if (!querySnapshot.empty) {
                             referralMatch = true;
-                            const referrerDoc = querySnapshot.docs[0];
-                            const referrerMobileNumber = referrerDoc.data().customerMobileNumber;
-                            const referrerName = referrerDoc.data().customerName;
-
-                            try {
-                                await setDoc(doc(db, 'customers', referrerMobileNumber, 'myReferrals', customerMobileNumber), {
-                                    customerMobileNumber: customerMobileNumber,
-                                    customerName: customerName,
-                                    timestamp: new Date(),
-                                });
-                            } catch (error) {
-                                console.error("Error adding myReferrals (referrer): ", error);
-                                setErrorMessage('An error occurred. Please try again later.');
-                                return;
-                            }
-
-                            try {
-                                await setDoc(doc(db, 'customers', customerMobileNumber, 'meReferred', referrerMobileNumber), {
-                                    customerName: referrerName,
-                                    customerMobileNumber: referrerMobileNumber,
-                                    timestamp: new Date(),
-                                });
-                            } catch (error) {
-                                console.error("Error adding myReferrals (new user): ", error);
-                                setErrorMessage('An error occurred. Please try again later.');
-                                return;
-                            }
                         }
                     }
 
@@ -494,12 +472,64 @@ const SignUp = () => {
             }
 
             const customerRef = doc(db, 'customers', customerMobileNumber)
-            const imageUrl = await uploadCustomerImage();
+            const customerDocSnap = await getDoc(customerRef)
+            // if (customerDocSnap.exists()) {
+            const customerDataForReferral = customerDocSnap.data()
+            // }
+            const imageUrl = customerImagePreview ? await uploadCustomerImage() : null;
             await updateDoc(customerRef, {
                 customerName: customerName.trimEnd(),
                 customerMailId: customerEmailId.trimEnd(),
                 customerImage: imageUrl
             })
+
+            const referralCode = customerDataForReferral.referralCode !== '' && customerDataForReferral.referralCode.length === 6 ? customerDataForReferral.referralCode : null
+
+            if (referralCode) {
+                let referralMatch = false;
+                if (referralCode) {
+                    const usersRef = collection(db, 'customers');
+                    const q = query(usersRef, where('customerReferralCode', '==', referralCode));
+                    const querySnapshot = await getDocs(q);
+
+                    if (!querySnapshot.empty) {
+                        referralMatch = true;
+                        const referrerDoc = querySnapshot.docs[0];
+                        const referrerMobileNumber = referrerDoc.data().customerMobileNumber;
+                        const referrerName = referrerDoc.data().customerName;
+
+                        try {
+                            await setDoc(doc(db, 'customers', referrerMobileNumber, 'myReferrals', customerMobileNumber), {
+                                customerMobileNumber: customerMobileNumber,
+                                customerName: customerName,
+                                timestamp: new Date(),
+                            });
+                        } catch (error) {
+                            console.error("Error adding myReferrals (referrer): ", error);
+                            setErrorMessage('An error occurred. Please try again later.');
+                            return;
+                        }
+
+                        try {
+                            await setDoc(doc(db, 'customers', customerMobileNumber, 'meReferred', referrerMobileNumber), {
+                                customerName: referrerName,
+                                customerMobileNumber: referrerMobileNumber,
+                                timestamp: new Date(),
+                            });
+                        } catch (error) {
+                            console.error("Error adding myReferrals (new user): ", error);
+                            setErrorMessage('An error occurred. Please try again later.');
+                            return;
+                        }
+                    }
+                }
+
+                if (referralCode && !referralMatch) {
+                    setErrorMessage('Incorrect referral code. Please try again.');
+                    setSuccessMessage('');
+                    return;
+                }
+            }
 
             const savedAddressesDocRef = collection(db, 'customers', customerMobileNumber, 'savedAddresses');
             const savedAddressesDocConvertedRef = doc(savedAddressesDocRef);
@@ -508,7 +538,7 @@ const SignUp = () => {
                 mobileNumberForAddress: customerMobileNumber,
                 nameForAddress: customerName.trimEnd(),
                 customerPlotNumber: customerFlatHouseNumber.trimEnd(),
-                customerComplexBuildingName: customerComplexBuildingAreaName.trimEnd(),
+                customerComplexNameOrBuildingName: customerComplexBuildingAreaName.trimEnd(),
                 customerRoadNameOrStreetName: customerRoadStreetName.trimEnd(),
                 customerVillageNameOrTownName: customerVillageTownName.trimEnd(),
                 customerLandmark: customerLandmark.trimEnd(),
@@ -521,7 +551,8 @@ const SignUp = () => {
             });
 
             const customerNewRef = doc(db, 'customers', customerMobileNumber)
-            const customerData = await getDoc(customerNewRef).data()
+            const customerNewDocSnap = await getDoc(customerNewRef)
+            const customerData = customerNewDocSnap.data()
 
             await setCustomerFullData(customerData)
 

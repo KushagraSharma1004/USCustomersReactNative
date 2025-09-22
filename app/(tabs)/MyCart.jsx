@@ -134,13 +134,13 @@ const MyCart = () => {
 
   const subscribeToVendorFullData = () => {
     if (!vendorMobileNumber || vendorMobileNumber.length !== 10) {
-      return () => {}; // Return empty cleanup function if invalid vendor number
+      return () => { }; // Return empty cleanup function if invalid vendor number
     }
-  
+
     setIsCommonLoaderVisible(true);
-  
+
     const vendorRef = doc(db, 'users', vendorMobileNumber);
-  
+
     // Start listening to realtime updates
     const unsubscribe = onSnapshot(
       vendorRef,
@@ -157,15 +157,15 @@ const MyCart = () => {
         setIsCommonLoaderVisible(false);
       }
     );
-  
+
     // Return unsubscribe function to be called on cleanup
     return unsubscribe;
   };
-  
+
   // Then in your useEffect, subscribe and cleanup:
   useEffect(() => {
     const unsubscribe = subscribeToVendorFullData();
-  
+
     return () => {
       unsubscribe();
     };
@@ -486,7 +486,7 @@ const MyCart = () => {
             </TouchableOpacity>
             <TouchableOpacity
               className='flex-1 p-[10px] rounded-[10px] bg-[#ccc]'
-              onPress={() => {setIsRatingModalVisible(false); router.push(`/Vendors/?vendor=${encodeURIComponent(localStorage.getItem('vendor'))}`)}}
+              onPress={() => { setIsRatingModalVisible(false); router.push(`/Vendors/?vendor=${encodeURIComponent(localStorage.getItem('vendor'))}`) }}
             >
               <Text className='text-white text-center'>Maybe later</Text>
             </TouchableOpacity>
@@ -532,9 +532,9 @@ const MyCart = () => {
         </Modal>
       }
       <View className='border-b-[5px] border-primary rounded-b-[10px] px-[10px] py-[5px] gap-[5px] bg-white' >
+        {selectedDeliveryMode === 'homeDelivery' && <TouchableOpacity onPress={openAddressSheet} className='p-[5px] bg-primary rounded-[5px] absolute top-[0px] right-[5px] z-10' ><Text className='text-white' >Change</Text></TouchableOpacity>}
         {selectedDeliveryMode === 'homeDelivery' &&
           <View>
-            <TouchableOpacity onPress={openAddressSheet} className='p-[5px] bg-primary rounded-[5px] absolute top-[0px] right-[0px] z-10' ><Text className='text-white' >Change</Text></TouchableOpacity>
 
             <Text className='font-bold text-[17px]' >📍{customerAddress.nameForAddress}</Text>
 

@@ -64,7 +64,6 @@ const ForgotPassword = () => {
   }
 
   const confirmCode = async () => {
-    setIsCommonLoaderVisible(true)
     if (!otp || otp.length !== 6) {
       setErrorMessage('Please enter the 6-digit OTP');
       return;
@@ -77,6 +76,7 @@ const ForgotPassword = () => {
 
     
     try {
+      setIsCommonLoaderVisible(true)
       await confirmationResult.confirm(otp);
       setIsCustomerAllowedToSetNewPassword(true)
       setSuccessMessage('✅ Phone verified! Registration complete.');
@@ -91,7 +91,8 @@ const ForgotPassword = () => {
   };
 
   const handleChangePassword = async () => {
-    setIsCommonLoaderVisible(true)
+    try{
+      setIsCommonLoaderVisible(true)
     const customerRef = doc(db, 'customers', customerMobileNumber)
 
     updateDoc(customerRef, {
@@ -102,6 +103,12 @@ const ForgotPassword = () => {
     setIsCustomerAllowedToSetNewPassword(false)
     setNewPassword('')
     setIsCommonLoaderVisible(false)
+  } catch (error) {
+    console.log('Error changing password: ', error)
+    setErrorMessage('Error changing password. Please try again.')
+  } finally {
+    setIsCommonLoaderVisible(false)
+  }
   }
 
   return (

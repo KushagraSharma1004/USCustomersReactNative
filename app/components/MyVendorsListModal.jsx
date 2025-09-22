@@ -72,7 +72,16 @@ const MyVendorsListModal = ({ isMyVendorsListModalVisible, setIsMyVendorsListMod
                                 isVendorActive = vendorRef.isVendorActive
                             }
                             return (
-                                <TouchableOpacity onPress={() => { if (isVendorActive) { router.push(`/Vendors/?vendor=${encodeURIComponent(encryptData(item.vendorMobileNumber))}`); setIsMyVendorsListModalVisible(false) } else null }} className='flex-row items-center' >
+                                <TouchableOpacity onPress={() => {
+                                    if (isVendorActive) {
+                                        router.push(`/Vendors/?vendor=${encodeURIComponent(encryptData(item.vendorMobileNumber))}`);
+                                        setIsMyVendorsListModalVisible(false)
+                                    } else {
+                                        alert('Vendor is currently unavailable.')
+                                        return
+                                    }
+                                }}
+                                    className='flex-row items-center' >
                                     <View className={`${vendorMobileNumber === item.vendorMobileNumber ? 'bg-wheat' : ''} ${isVendorActive ? '' : 'bg-white'} flex-1 rounded-[5px] p-[5px] flex-row mb-[3px] gap-[5px]`} >
                                         {isVendorActive && vendorMobileNumber !== item.vendorMobileNumber && (
                                             <Image
