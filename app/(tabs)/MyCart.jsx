@@ -34,7 +34,6 @@ const MyCart = () => {
   const [rating, setRating] = useState(0)
   const [ratingComment, setRatingComment] = useState('')
 
-
   useFocusEffect(
     useCallback(() => {
       // Runs when screen is focused (mounted or comes back into view)

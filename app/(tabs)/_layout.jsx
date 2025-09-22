@@ -22,6 +22,16 @@ const TabsLayout = () => {
     const vendorMobileNumber = decryptData(localStorage.getItem('vendor'))
     const [selectedDeliveryMode, setSelectedDeliveryMode] = useState('selectADeliveryMode')
     const params = useGlobalSearchParams()
+    const [customerMobileNumber, setCustomerMobileNumber] = useState(decryptData(localStorage.getItem('customerMobileNumber')) || '');
+      
+      useEffect(() => {
+        const interval = setInterval(() => {
+          const val = decryptData(localStorage.getItem('customerMobileNumber')) || '';
+          setCustomerMobileNumber(val);
+        }, 500); // check every 500ms
+      
+        return () => clearInterval(interval);
+      }, []);
 
     const fetchVendorFullData = async () => {
         if (!vendorMobileNumber || vendorMobileNumber.length !== 10) {
@@ -81,7 +91,7 @@ const TabsLayout = () => {
                         headerShown: false,
                         tabBarActiveBackgroundColor: '#2874F0',
                         tabBarActiveTintColor: 'white',
-                        tabBarStyle: {
+                        tabBarStyle: customerMobileNumber.length === 10 ?{
                             borderTopLeftRadius: 10,
                             borderTopRightRadius: 10,
                             borderTopWidth: 5,
@@ -89,7 +99,7 @@ const TabsLayout = () => {
                             height: 65,
                             paddingTop: 3,
                             paddingBottom: 3
-                        },
+                        } : {display:"none"},
                         tabBarItemStyle: {
                             borderRadius: 10,
                             marginHorizontal: 5, // optional spacing to see the rounded effect
@@ -137,7 +147,7 @@ const TabsLayout = () => {
                             },
                             headerRight: () => {
                                 return (
-                                    <Text className='text-primary p-[10px] text-[14px]' >Total: <Text className='font-bold text-[16px]' >₹{selectedDeliveryMode === 'homeDelivery' ? Number(vendorFullData?.freeDeliveryAboveAmount || 0) - cartTotal > 0 ? cartTotal + Number(vendorFullData.deliveryCharge) : cartTotal : cartTotal}</Text></Text>
+                                    <Text className='text-primary p-[10px] text-[14px]' >Total: <Text className='font-bold text-[16px]' >₹{selectedDeliveryMode === 'homeDelivery' ? Number(vendorFullData?.freeDeliveryAboveAmount || 0) === 0 ? cartTotal + Number(vendorFullData.deliveryCharge) : Number(vendorFullData?.freeDeliveryAboveAmount || 0) - cartTotal > 0 ? cartTotal + Number(vendorFullData.deliveryCharge) : cartTotal : cartTotal}</Text></Text>
                                 )
                             }
                         }}

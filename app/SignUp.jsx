@@ -12,6 +12,7 @@ import { getCurrentLocation } from './utils/location.js'
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { v4 as uuidv4 } from 'uuid';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { decryptData, encryptData } from './context/hashing.js'
 
 const SignUp = () => {
     const router = useRouter()
@@ -47,6 +48,7 @@ const SignUp = () => {
     const [customerImagePreview, setCustomerImagePreview] = useState(null);
     const [showImagePickerOptions, setShowImagePickerOptions] = useState(false);
     const [customerImage, setCustomerImage] = useState(null)
+    const registerInVendor = decryptData(localStorage.getItem('registerInVendor')) || ''
 
     const uploadCustomerImage = async () => {
         if (!customerImage) return null;
@@ -559,6 +561,39 @@ const SignUp = () => {
             await setCustomerMobileNumber(customerMobileNumber)
             await setCustomerPassword(customerPassword)
             setErrorMessage('');
+            if (registerInVendor && registerInVendor.length === 10) {
+                const handleAddVendorToMyVendorList = async () => {
+                    try {
+                        const customerInVendorRef = doc(db, 'customers', customerMobileNumber, 'vendors', registerInVendor)
+                        const vendorInCustomerRef = doc(db, 'users', registerInVendor, 'customers', registerInVendor)
+                        const customerInVendorDocSnap = await getDoc(customerInVendorRef)
+                        const vendorInCustomerDocSnap = await getDoc(vendorInCustomerRef)
+                        if (!customerInVendorDocSnap.exists() || !vendorInCustomerDocSnap.exists()) {
+                            await setDoc(customerInVendorRef, {
+                                addedAt: serverTimestamp(),
+                                vendorMobileNumber: registerInVendor
+                            })
+
+                            await setDoc(vendorInCustomerRef, {
+                                addedAt: serverTimestamp(),
+                                customerMobileNumber
+                            })
+
+                            localStorage.removeItem('registerInVendor')
+                            router.push(`/Vendors/?vendor=${encodeURIComponent(encryptData(registerInVendor))}`)
+                        } else {
+                            localStorage.removeItem('registerInVendor')
+                            router.push(`/Vendors/?vendor=${encodeURIComponent(encryptData(registerInVendor))}`)
+                        }
+                    } catch (error) {
+                        console.log('Error adding vendor to vendor list: ', error)
+                        alert('Could not add vendor to vendor list. Please try again.')
+                    }
+                }
+                await handleAddVendorToMyVendorList()
+                // router.push(`/(tabs)/Vendors/?vendor=${encodeURIComponent(encryptData(registerInVendor))}`)
+                return
+            }
             router.replace('/(tabs)/Home')
         } catch (error) {
             console.log('Error Completing Registration: ', error);

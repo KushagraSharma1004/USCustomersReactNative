@@ -2,7 +2,7 @@
   "name": "uscustomers",
   "main": "expo-router/entry",
   "version": "1.0.0",
-  "homepage": "https://www.testcustomers.unoshops.com",
+  "homepage": "https://www.customers.unoshops.com",
   "scripts": {
     "dev": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
@@ -13,7 +13,7 @@
     "build": "expo export --platform web --output-dir dist",
     "predeploy": "npm run build && npm run fix-paths && npm run add-cname",
     "fix-paths": "sed -i '' 's|=\"/_expo/|=\"./_expo/|g' dist/index.html",
-    "add-cname": "echo 'testcustomers.unoshops.com' > dist/CNAME && touch dist/.nojekyll",
+    "add-cname": "echo 'customers.unoshops.com' > dist/CNAME && touch dist/.nojekyll",
     "deploy": "gh-pages -d dist --dotfiles"
   },
   "dependencies": {

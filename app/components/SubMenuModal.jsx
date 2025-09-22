@@ -27,9 +27,9 @@ const SubMenuModal = ({ isVisible, onClose }) => {
         router.push(path);
     };
 
-    const fetchVendorFullData = async () => {
+    const fetchVendorFullData = async (val) => {
         try {
-            const vendorRef = doc(db, 'users', vendorMobileNumber)
+            const vendorRef = doc(db, 'users', val && val.length === 10 ? val : vendorMobileNumber)
             const vendorDocSnap = await getDoc(vendorRef)
             if (!vendorDocSnap.exists()) {
                 return
@@ -48,6 +48,15 @@ const SubMenuModal = ({ isVisible, onClose }) => {
         }
         fetchVendorFullData()
     }, [vendorMobileNumber])
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const val = decryptData(localStorage.getItem('vendor')) || '';
+            fetchVendorFullData(val);
+        }, 500); // check every 500ms
+
+        return () => clearInterval(interval);
+    }, []);
 
     return (
         <View className='h-full' style={{ display: isVisible ? 'flex' : 'none', zIndex: 9999999 }}>
@@ -137,7 +146,7 @@ const styles = StyleSheet.create({
         color: '#2874F0', // Or your primary color
         fontWeight: '600',
         zIndex: 9999999,
-        textAlign:'center'
+        textAlign: 'center'
     },
     logoutText: {
         fontSize: 16,

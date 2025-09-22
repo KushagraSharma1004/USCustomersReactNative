@@ -9,14 +9,14 @@ import MultipleItemsCard from '../components/MutipleItemsCard';
 import { FlashList } from "@shopify/flash-list";
 import { useAuth } from '../context/AuthContext';
 import { useCart } from "../context/CartContext";
-import { decryptData } from '../context/hashing'
+import { decryptData, encryptData } from '../context/hashing'
 import Loader from '../components/Loader'
 import ConfirmationModal from '../components/ConfirmationModal';
 import MyVendorsListModal from '../components/MyVendorsListModal';
 import BouncyCheckbox from "react-native-bouncy-checkbox";
 
 const Vendors = () => {
-  const { customerMobileNumber, fetchMyVendors } = useAuth()
+  const { customerMobileNumber, fetchMyVendors, setCustomerMobileNumber } = useAuth()
   const router = useRouter()
   const params = useLocalSearchParams()
   const screenWidth = Dimensions.get('window').width;
@@ -37,6 +37,7 @@ const Vendors = () => {
   const [hasCustomerReadVendorTermsAndConditions, setHasCustomerReadVendorTermsAndConditions] = useState(false)
   const [isVendorTermsAndConditionsModalVisible, setIsVendorTermsAndConditionsModalVisible] = useState(false)
   const [isOfflineModalVisible, setIsOfflineModalVisible] = useState(vendorFullData?.isOffline ?? false);
+  const fromQR = params.fromQR === 'true' ? true : false
 
   useEffect(() => {
     localStorage.setItem('vendor', params.vendor);
@@ -162,6 +163,14 @@ const Vendors = () => {
   }, [vendorMobileNumber]);
 
   const handleAddToCartWithUpdate = async (item) => {
+    if(!customerMobileNumber || customerMobileNumber.length !== 10 || fromQR && decryptData(localStorage.getItem('customerMobileNumber')).length !== 10){
+      alert('Please Login/SignUp to continue.')
+      localStorage.setItem('registerInVendor', encryptData(vendorMobileNumber))
+      router.replace(`/Login/`)
+      return;
+    } else {
+      setCustomerMobileNumber(decryptData(localStorage.getItem('customerMobileNumber')))
+    }
     try {
       const itemRef = doc(
         db,
@@ -368,7 +377,8 @@ const Vendors = () => {
         </View>
       </Modal>
 
-      <Header setIsMyVendorsListModalVisible={setIsMyVendorsListModalVisible} />
+      {decryptData(localStorage.getItem('customerMobileNumber')).length === 10 && <Header setIsMyVendorsListModalVisible={setIsMyVendorsListModalVisible} />}
+      
       <View className='w-[98%] self-center bg-white rounded-[10px] gap-[5px] border border-[#ccc]' >
         <View className='px-[10px] py-[5px] w-full flex-row items-center justify-between ' >
           <Text className='text-center text-[16px] text-primaryGreen font-bold flex-1 border-r'>{vendorFullData?.businessName}</Text>

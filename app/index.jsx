@@ -1,15 +1,19 @@
 import { View, Text, ActivityIndicator } from 'react-native';
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from './context/AuthContext';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
-import { decryptData } from './context/hashing';
+import { decryptData, encryptData } from './context/hashing';
 
 const Index = () => {
   const { setCustomerFullData, setCustomerMobileNumber, setCustomerPassword } = useAuth();
   const router = useRouter();
   const [isReady, setIsReady] = useState(false);
+  const params = useLocalSearchParams();
+  const oldMethod_FromQR = params.fromQR === 'true' ? true : false
+  const oldMethod_VendorMobileNumberFromQR = params.vendorMobileNumberFromQR || ''
+  const [isChecked, setIsChecked] = useState(false)
 
   useEffect(() => {
     // Mark router as ready after initial mount
@@ -17,9 +21,23 @@ const Index = () => {
   }, []);
 
   useEffect(() => {
+    if (!isReady) return;
+    if (oldMethod_FromQR && oldMethod_VendorMobileNumberFromQR.length === 10) {
+      router.replace(`/Vendors/?vendor=${encodeURIComponent(encryptData(oldMethod_VendorMobileNumberFromQR))}&fromQR=true`)
+      return
+    }
+    setIsChecked(true)
+  }, [oldMethod_FromQR, oldMethod_VendorMobileNumberFromQR, isReady])
+
+  useEffect(() => {
     const redirect = async () => {
       if (!isReady) return; // Only redirect when router is ready
+      if (!isChecked) return
       try {
+        // if(oldMethod_FromQR && oldMethod_VendorMobileNumberFromQR.length === 10){
+        //   router.replace(`/Vendors/?vendor=${encodeURIComponent(oldMethod_VendorMobileNumberFromQR)}&fromQR=true`)
+        //   return
+        // }
         const customerMobileNumber = typeof window !== "undefined" ? decryptData(localStorage.getItem('customerMobileNumber')) || '' : '';
         const customerPassword = typeof window !== "undefined" ? decryptData(localStorage.getItem('customerPassword')) || '' : '';
 
@@ -43,7 +61,7 @@ const Index = () => {
       }
     };
     redirect();
-  }, [isReady, router, setCustomerFullData, setCustomerMobileNumber, setCustomerPassword]);
+  }, [isReady, router, setCustomerFullData, setCustomerMobileNumber, setCustomerPassword, isChecked]);
 
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#2874F0' }}>

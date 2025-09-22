@@ -4,8 +4,9 @@ import { useAuth } from './context/AuthContext'
 import TextInputComponent from './components/TextInput'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import Loader from './components/Loader.jsx'
-import { doc, getDoc } from 'firebase/firestore'
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { db } from '@/firebase'
+import { decryptData, encryptData } from './context/hashing.js'
 
 const Login = () => {
   const router = useRouter()
@@ -17,6 +18,9 @@ const Login = () => {
   const [isCommonLoaderVisible, setIsCommonLoaderVisible] = useState(false)
   const [customerPassword, setCustomerPasswordThisScreen] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
+  const registerInVendor = decryptData(localStorage.getItem('registerInVendor')) || ''
+  const oldMethod_FromQR = params.fromQR === 'true' ? true : false
+  const oldMethod_VendorMobileNumberFromQR = params.vendorMobileNumberFromQR || ''
 
   useEffect(() => {
     if (customerMobileNumberFromURL && customerMobileNumberFromURL.length === 10) {
@@ -26,6 +30,13 @@ const Login = () => {
       setCustomerPasswordThisScreen(customerPasswordFromURL)
     }
   }, [customerMobileNumberFromURL, customerPasswordFromURL]);
+
+  useEffect(() => {
+    if(oldMethod_FromQR && decryptData(oldMethod_VendorMobileNumberFromQR).length === 10){
+      router.replace(`/Vendors/?vendor=${encodeURIComponent(oldMethod_VendorMobileNumberFromQR)}&fromQR=true`)
+      return
+    }
+  }, [oldMethod_FromQR, oldMethod_VendorMobileNumberFromQR])
 
   const validateForm = () => {
     const isMobileNumberValid = customerMobileNumber.length === 10;
@@ -71,6 +82,39 @@ const Login = () => {
 
       await setCustomerMobileNumber(customerMobileNumber)
       await setCustomerPassword(customerPassword)
+      if(registerInVendor && registerInVendor.length === 10){
+        const handleAddVendorToMyVendorList = async () => {
+          try {
+            const customerInVendorRef = doc(db, 'customers', customerMobileNumber, 'vendors', registerInVendor)
+            const vendorInCustomerRef = doc(db, 'users', registerInVendor, 'customers', registerInVendor)
+            const customerInVendorDocSnap = await getDoc(customerInVendorRef)
+            const vendorInCustomerDocSnap = await getDoc(vendorInCustomerRef)
+            if(!customerInVendorDocSnap.exists() || !vendorInCustomerDocSnap.exists()) {
+              await setDoc(customerInVendorRef, {
+                addedAt: serverTimestamp(),
+                vendorMobileNumber: registerInVendor
+              })
+
+              await setDoc(vendorInCustomerRef, {
+                addedAt: serverTimestamp(),
+                customerMobileNumber
+              })
+              
+              localStorage.removeItem('registerInVendor')
+              router.push(`/Vendors/?vendor=${encodeURIComponent(encryptData(registerInVendor))}`)
+            } else {
+              localStorage.removeItem('registerInVendor')
+              router.push(`/Vendors/?vendor=${encodeURIComponent(encryptData(registerInVendor))}`)
+            }
+          } catch (error) {
+            console.log('Error adding vendor to vendor list: ', error)
+            alert('Could not add vendor to vendor list. Please try again.')
+          }
+        }
+        await handleAddVendorToMyVendorList()
+        // router.push(`/(tabs)/Vendors/?vendor=${encodeURIComponent(encryptData(registerInVendor))}`)
+        return
+      }
       router.push('/(tabs)/Home')
     } catch (error) {
       setErrorMessage(error.message)
