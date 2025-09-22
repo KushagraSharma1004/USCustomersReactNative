@@ -1,0 +1,527 @@
+import { View, Text, TouchableOpacity, Linking, TextInput, Image, FlatList, Dimensions, ScrollView, Modal } from 'react-native'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
+import Header from '../components/Header';
+import { db } from '@/firebase'
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc, increment, deleteDoc, onSnapshot } from 'firebase/firestore';
+import ItemCard from '../components/ItemCard';
+import MultipleItemsCard from '../components/MutipleItemsCard';
+import { FlashList } from "@shopify/flash-list";
+import { useAuth } from '../context/AuthContext';
+import { useCart } from "../context/CartContext";
+import { decryptData } from '../context/hashing'
+import Loader from '../components/Loader'
+import ConfirmationModal from '../components/ConfirmationModal';
+import MyVendorsListModal from '../components/MyVendorsListModal';
+import BouncyCheckbox from "react-native-bouncy-checkbox";
+
+const Vendors = () => {
+  const { customerMobileNumber, fetchMyVendors } = useAuth()
+  const router = useRouter()
+  const params = useLocalSearchParams()
+  const screenWidth = Dimensions.get('window').width;
+  const vendorMobileNumber = decryptData(params.vendor)
+  const [isCommonLoaderVisible, setIsCommonLoaderVisible] = useState(false)
+  const [vendorFullData, setVendorFullData] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isSearchBarVisible, setIsSearchBarVisible] = useState(false)
+  const [carouselData, setCarouselData] = useState([]);
+  const carouselRef = useRef(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [filteredItemsList, setFilteredItemsList] = useState([]);
+  const [allItemsList, setAllItemsList] = useState([]); // Add this near filteredItemsList state
+  const { cartItems, fetchCartItems, cartCount, cartTotal } = useCart();
+  const [isMyVendorsListModalVisible, setIsMyVendorsListModalVisible] = useState(false)
+  const [isRemoveVendorFromMyVendorsListConfirmationModalVisible, setIsRemoveVendorFromMyVendorsListConfirmationModalVisible] = useState(false)
+  const [vendorMobileNumberToRemoveFromMyVendorsList, setVendorMobileNumberToRemoveFromMyVendorsList] = useState(null)
+  const [hasCustomerReadVendorTermsAndConditions, setHasCustomerReadVendorTermsAndConditions] = useState(false)
+  const [isVendorTermsAndConditionsModalVisible, setIsVendorTermsAndConditionsModalVisible] = useState(false)
+  const [isOfflineModalVisible, setIsOfflineModalVisible] = useState(vendorFullData?.isOffline ?? false);
+
+  useEffect(() => {
+    localStorage.setItem('vendor', params.vendor);
+
+    // Dispatch custom event when vendor changes
+    const vendorChangeEvent = new CustomEvent('vendorChanged');
+    document.dispatchEvent(vendorChangeEvent);
+  }, [params.vendor]);
+
+  const fetchVendorFullData = async () => {
+    if (!vendorMobileNumber || vendorMobileNumber.length !== 10) {
+      return;
+    }
+    try {
+      setIsCommonLoaderVisible(true)
+      const vendorRef = doc(db, 'users', vendorMobileNumber)
+      const vendorDocSnap = await getDoc(vendorRef)
+      if (!vendorDocSnap.exists()) {
+        return
+      }
+      const vendorData = vendorDocSnap.data()
+
+      setVendorFullData(vendorData)
+      fetchHasCustomerReadVendorTermsAndConditions(vendorData)
+    } catch (error) {
+      console.log('Error fetching vendor details: ', error)
+    } finally {
+      setIsCommonLoaderVisible(false)
+    }
+  }
+
+  const handleRemoveVendorFromMyVendorsList = async () => {
+    try {
+      const vendorInCustomerRef = doc(db, 'customers', customerMobileNumber, 'vendors', vendorMobileNumberToRemoveFromMyVendorsList)
+      const vendorInCustomerDocSnap = await getDoc(vendorInCustomerRef)
+
+      if (vendorInCustomerDocSnap.exists()) {
+        await deleteDoc(vendorInCustomerRef)
+      }
+      const customerInVendorRef = doc(db, 'users', vendorMobileNumberToRemoveFromMyVendorsList, 'customers', customerMobileNumber)
+      const customerInVendorDocSnap = await getDoc(customerInVendorRef)
+      if (customerInVendorDocSnap.exists()) {
+        await deleteDoc(customerInVendorRef)
+      }
+      await fetchMyVendors()
+    } catch (error) {
+      console.log('Error removing vendor from vendor list: ', error)
+    }
+  }
+
+  const fetchHasCustomerReadVendorTermsAndConditions = async (vendorFullData) => {
+    try {
+      const vendorInCustomerRef = doc(db, 'customers', customerMobileNumber, 'vendors', vendorMobileNumber)
+      const vendorInCustomerDocSnap = await getDoc(vendorInCustomerRef)
+      if (vendorInCustomerDocSnap.exists()) {
+        const vendorInCustomerData = vendorInCustomerDocSnap.data()
+        if (vendorInCustomerData?.isTermsAndConditionsReaded === true || vendorFullData?.termsAndConditions === '' || vendorFullData?.termsAndConditions === null || vendorFullData?.termsAndConditions === undefined) {
+          setIsVendorTermsAndConditionsModalVisible(false)
+          setHasCustomerReadVendorTermsAndConditions(true)
+        } else {
+          setIsVendorTermsAndConditionsModalVisible(true)
+          setHasCustomerReadVendorTermsAndConditions(false)
+        }
+        setHasCustomerReadVendorTermsAndConditions(vendorInCustomerData.areTermsAndConditionsReaded)
+      }
+    } catch (error) {
+      console.log('Error checking has customer readed T&C: ', error)
+    }
+  }
+
+  useEffect(() => {
+    const query = searchQuery.toLowerCase();
+    if (!query) {
+      setFilteredItemsList(allItemsList);
+      return;
+    }
+    const filtered = allItemsList.filter(item => {
+      // Check all string values in the item object for the query
+      return Object.values(item).some(value =>
+        typeof value === 'string' && value.toLowerCase().includes(query)
+      );
+    });
+    setFilteredItemsList(filtered);
+  }, [searchQuery, allItemsList]);
+
+  useEffect(() => {
+    localStorage.setItem('vendor', params.vendor)
+  }, [])
+
+  useFocusEffect(
+    useCallback(() => {
+      // Runs when screen is focused (mounted or comes back into view)
+      fetchVendorFullData()
+      return () => {
+        // Optional cleanup when screen goes out of focus
+      };
+    }, [vendorMobileNumber])
+  );
+
+  useEffect(() => {
+    fetchCartItems()
+  }, [vendorMobileNumber])
+
+  // Inside Vendors component
+  useEffect(() => {
+    if (!vendorMobileNumber) return;
+
+    const vendorItemsRef = collection(db, 'users', vendorMobileNumber, 'list');
+    const unsubscribe = onSnapshot(vendorItemsRef, (snapshot) => {
+      if (!snapshot.empty) {
+        const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setAllItemsList(items);
+        setFilteredItemsList(items);
+      } else {
+        setAllItemsList([]);
+        setFilteredItemsList([]);
+      }
+    }, (error) => {
+      console.log('Error fetching vendor items: ', error);
+    });
+
+    return () => unsubscribe(); // cleanup on unmount
+  }, [vendorMobileNumber]);
+
+  const handleAddToCartWithUpdate = async (item) => {
+    try {
+      const itemRef = doc(
+        db,
+        "customers",
+        customerMobileNumber,
+        "cart",
+        vendorMobileNumber,
+        "items",
+        item.id
+      );
+
+      const itemSnap = await getDoc(itemRef);
+
+      if (itemSnap.exists()) {
+        await updateDoc(itemRef, {
+          quantity: increment(1),
+          updatedAt: new Date(),
+        });
+      } else {
+        await setDoc(itemRef, {
+          name: item.name,
+          price: item.prices[0].sellingPrice,
+          prices: item.prices,
+          measurement: item.prices[0].measurement,
+          quantity: 1,
+          stock: item.stock,
+          image: item?.images?.[0] || null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      }
+
+      // Refresh cart items after operation
+      await fetchCartItems();
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      alert("Could not add to cart. Please try again.");
+    }
+  };
+
+  const handleIncrementWithUpdate = async (itemId) => {
+    try {
+      const itemRef = doc(db, "customers", customerMobileNumber, "cart", vendorMobileNumber, "items", itemId);
+      await updateDoc(itemRef, {
+        quantity: increment(1),
+        updatedAt: new Date(),
+      });
+
+      // Refresh cart items after operation
+      await fetchCartItems();
+    } catch (error) {
+      console.error("Error incrementing:", error);
+    }
+  };
+
+  const handleDecrementWithUpdate = async (itemId, currentQty) => {
+    try {
+      const itemRef = doc(db, "customers", customerMobileNumber, "cart", vendorMobileNumber, "items", itemId);
+
+      if (currentQty <= 1) {
+        await deleteDoc(itemRef); // remove completely if qty 0
+      } else {
+        await updateDoc(itemRef, {
+          quantity: increment(-1),
+          updatedAt: new Date(),
+        });
+      }
+
+      // Refresh cart items after operation
+      await fetchCartItems();
+    } catch (error) {
+      console.error("Error decrementing:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (vendorFullData?.banners?.length > 0) {
+      setCarouselData(vendorFullData.banners.map((bannerUrl, index) => ({
+        id: `banner-${index}`, // Use a unique ID for each banner
+        image: { uri: bannerUrl }
+      })));
+    } else {
+      setCarouselData([]); // Clear the carousel if no banners are available
+    }
+  }, [vendorFullData]);
+
+  useEffect(() => {
+    setIsOfflineModalVisible(vendorFullData?.isOffline ?? false);
+  }, [vendorFullData?.isOffline, vendorFullData]);
+
+  const onViewRef = useRef(({ viewableItems }) => {
+    if (viewableItems.length > 0) {
+      setActiveIndex(viewableItems[0].index || 0);
+    }
+  });
+
+  const viewConfigRef = useRef({
+    viewAreaCoveragePercentThreshold: 50,
+    waitForInteraction: true,
+  });
+
+  // Auto-scroll effect for carousel
+  useEffect(() => {
+    let intervalId;
+    if (carouselData.length > 1) {
+      intervalId = setInterval(() => {
+        setActiveIndex(prevIndex => {
+          const nextIndex = (prevIndex + 1) % carouselData.length;
+          carouselRef.current?.scrollToOffset({
+            offset: nextIndex * screenWidth,
+            animated: true,
+          });
+          return nextIndex;
+        });
+      }, 5000);
+    }
+
+    return () => clearInterval(intervalId);
+  }, [carouselData.length, screenWidth]);
+
+  const numberedItems = [];
+  let counter = filteredItemsList.length;
+
+  filteredItemsList.forEach((item, index) => {
+    const nameGroup = filteredItemsList.filter(
+      (itm) => itm.name.toLowerCase() === item.name.toLowerCase()
+    );
+
+    const firstIndexOfGroup = filteredItemsList.findIndex(
+      (i) => i.name.toLowerCase() === item.name.toLowerCase()
+    );
+
+    // If this is the first occurrence of a group
+    if (nameGroup.length > 1 && firstIndexOfGroup === index) {
+      nameGroup.forEach((gItem) => {
+        numberedItems.push({ ...gItem, itemNumber: counter });
+        counter--;
+      });
+    }
+
+    // If it's a single item
+    if (nameGroup.length === 1) {
+      numberedItems.push({ ...item, itemNumber: counter });
+      counter--;
+    }
+  })
+
+  return (
+    <View className='flex-1 gap-[1px]'>
+      <Modal animationType='slide' transparent={true} visible={isOfflineModalVisible} >
+        <TouchableOpacity className='flex-1' onPress={() => { setIsOfflineModalVisible(false); router.replace('/Home'); }} >
+          <Image className='absolute top-0' resizeMode='stretch' source={require('../../assets/images/closedShutterImage.png')} style={{ height: '100%', width: '100%' }} />
+          <Image className='absolute top-[10px] right-[10px] z-50' source={require('../../assets/images/crossImage.png')} style={{ height: 30, width: 30 }} />
+          <Text className='mt-[20px] text-[20px] font-bold text-center' >{vendorFullData?.businessName}</Text>
+          <Text className='mt-[100px] font-bold text-[25px] text-primaryRed text-center' >CLOSED</Text>
+          {vendorFullData?.leaveNotice && vendorFullData?.leaveNotice !== '' && <Text className='mt-[100px] font-bold text-[20px] text-primaryRed text-center' >Notice</Text>}
+          {vendorFullData?.leaveNotice && vendorFullData?.leaveNotice !== '' && <Text className='mt-[10px] text-center text-[16px]' >{vendorFullData?.leaveNotice}</Text>}
+        </TouchableOpacity>
+      </Modal>
+
+      {isCommonLoaderVisible && <Loader />}
+      {isRemoveVendorFromMyVendorsListConfirmationModalVisible &&
+        <ConfirmationModal
+          setIsConfirmModalVisible={setIsRemoveVendorFromMyVendorsListConfirmationModalVisible}
+          confirmationMessage={'Are you sure you want to remove this vendor from ⁠❤️ Vendors list?'}
+          onConfirm={async () => {
+            await handleRemoveVendorFromMyVendorsList()
+            setIsRemoveVendorFromMyVendorsListConfirmationModalVisible(false)
+          }}
+          confirmText='Delete'
+          cancelText='Cancel'
+        />
+      }
+
+      <Modal animationType='slide' transparent={true} visible={isVendorTermsAndConditionsModalVisible}>
+        <View className='flex-1 bg-[#00000060] items-center justify-center' >
+          <View className='bg-white p-[10px] w-[90%] h-[90%] rounded-[10px]' >
+            <TouchableOpacity className='absolute top-[10px] right-[10px] z-50' onPress={() => { router.replace('/Home'); setIsVendorTermsAndConditionsModalVisible(false) }} ><Image style={{ height: 30, width: 30 }} source={require('../../assets/images/crossImage.png')} /></TouchableOpacity>
+            <View className='p-[10px] w-full rounded-[10px] max-w-[90%]' ><Text className='text-center text-primaryRed text-[15px]' ><Text className='text-[#E48108FD] font-bold' >{vendorFullData?.businessName}'s</Text> Terms and Condition*</Text></View>
+            <ScrollView className='max-h-[85%] p-[5px] border border-[#ccc] rounded-[10px]' >
+              <Text>{vendorFullData?.termsAndConditions}</Text>
+            </ScrollView>
+            <View className='flex-row items-center justify-center gap-[5px] p-[10px]' >
+              <BouncyCheckbox
+                isChecked={hasCustomerReadVendorTermsAndConditions}
+                disableText
+                fillColor="green"
+                size={25}
+                useBuiltInState={false}
+                iconStyle={{ borderRadius: 5 }}        // outer icon container radius
+                innerIconStyle={{ borderRadius: 5 }}   // inner icon radius (important)
+                onPress={async () => {
+                  const newValue = !hasCustomerReadVendorTermsAndConditions;
+                  setHasCustomerReadVendorTermsAndConditions(newValue);
+                  await updateDoc(doc(db, 'customers', customerMobileNumber, 'vendors', vendorMobileNumber), {
+                    isTermsAndConditionsReaded: newValue
+                  });
+                  setIsVendorTermsAndConditionsModalVisible(false);
+                }}
+              />
+              <Text className='text-[15px] leading-none' >I Agree</Text>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Header setIsMyVendorsListModalVisible={setIsMyVendorsListModalVisible} />
+      <View className='w-[98%] self-center bg-white rounded-[10px] gap-[5px] border border-[#ccc]' >
+        <View className='px-[10px] py-[5px] w-full flex-row items-center justify-between ' >
+          <Text className='text-center text-[16px] text-primaryGreen font-bold flex-1 border-r'>{vendorFullData?.businessName}</Text>
+          <TouchableOpacity className='px-[10px]' onPress={() => Linking.openURL(`tel:${vendorMobileNumber}`)} ><Text className='text-primary text-center' >Call 📞</Text></TouchableOpacity>
+        </View>
+      </View>
+
+      <ScrollView className='flex-1 pb-[50px]' >
+        {carouselData.length > 0 && <View style={{ height: 180, width: '100%', marginBottom: 5 }}>
+          <FlatList
+            data={carouselData}
+            renderItem={({ item }) => (
+              <Image
+                source={item.image}
+                style={{ width: screenWidth, height: 180, borderRadius: 7, maxWidth: '450px' }} // 👈 match width with snapToInterval
+                resizeMode="stretch"
+              />
+            )}
+            keyExtractor={(item) => item.id}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onViewableItemsChanged={onViewRef.current}
+            viewabilityConfig={viewConfigRef.current}
+            ref={carouselRef}
+            snapToInterval={screenWidth} // 👈 match width
+            decelerationRate="fast"
+            getItemLayout={(_, index) => ({
+              length: screenWidth,
+              offset: screenWidth * index,
+              index,
+            })} // 👈 required for scrollToIndex
+          />
+
+          {/* Dots only when real banners exist */}
+          {carouselData.length > 0 && (
+            <View className="flex-row justify-center absolute bottom-2 w-full">
+              {carouselData.map((_, index) => (
+                <View
+                  key={index}
+                  className={`w-2 h-2 rounded-full mx-1 ${index === activeIndex ? 'bg-white' : 'bg-gray-400'
+                    }`}
+                />
+              ))}
+            </View>
+          )}
+        </View>}
+
+        <FlashList
+          data={numberedItems}
+          renderItem={({ item }) => {
+            // const isItemHidden = item?.hidden ?? false;
+            const nameGroup = numberedItems.filter(
+              (itm) => itm.name.toLowerCase() === item.name.toLowerCase() && itm.hidden !== true
+            );
+            const isItemsMultiple = nameGroup.length > 1;
+            const firstIndexOfGroup = numberedItems.findIndex(
+              (i) => i.name.toLowerCase() === item.name.toLowerCase()
+            );
+
+            if (isItemsMultiple && numberedItems[firstIndexOfGroup].id === item.id) {
+              return (
+                <View className="bg-[white] rounded-[10px] mb-[2px] gap-[3px]">
+                  <Text className="text-base font-bold m-[5px] text-white text-center bg-primary rounded-[10px] p-[7px]  border-[3px] border-black">
+                    {item.name}
+                  </Text>
+
+                  <FlatList
+                    data={nameGroup}
+                    keyExtractor={(itm) => itm.id}
+                    horizontal
+                    renderItem={({ item: groupedItem, index: groupedItemIndex }) => {
+                      const isItemHidden = groupedItem?.hidden ?? false;
+                      if (isItemHidden) return null
+                      return (
+                        <View className="mr-2">
+                          <MultipleItemsCard
+                            item={groupedItem}
+                            innerIndex={nameGroup.length - groupedItemIndex}
+                            cartItem={cartItems[groupedItem.id] || null} // Get cart item for this specific product
+                            onAddToCart={handleAddToCartWithUpdate}
+                            onIncrement={handleIncrementWithUpdate}
+                            onDecrement={handleDecrementWithUpdate}
+                          />
+                        </View>
+                      )
+                    }}
+                  />
+                </View>
+              );
+            }
+
+            if (!isItemsMultiple) {
+              const isItemHidden = item?.hidden ?? false;
+              if (isItemHidden) return null
+              return (
+                <ItemCard
+                  item={item}
+                  cartItem={cartItems[item.id] || null}
+                  onAddToCart={handleAddToCartWithUpdate}
+                  onIncrement={handleIncrementWithUpdate}
+                  onDecrement={handleDecrementWithUpdate}
+                />
+              );
+            }
+
+            return null;
+          }}
+          keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
+        />
+      </ScrollView>
+
+      {!isSearchBarVisible && (
+        <TouchableOpacity
+          className="absolute bottom-[5px] z-[10] left-[1px] p-[10px] items-center justify-center rounded-r-[10px] bg-wheat"
+          onPress={() => router.push('/MyCart')}
+        >
+          {cartCount > 0 && <Text className='absolute top-[5px] right-[5px] rounded-full bg-black z-20 p-[2px] text-white' >{cartCount}</Text>}
+          <Image style={{ height: 30, width: 30 }} source={require('../../assets/images/myCartImage.png')} />
+          {cartTotal > 0 && <Text className='font-bold text-[12px]' >₹{cartTotal}</Text>}
+        </TouchableOpacity>
+      )}
+
+      {!isSearchBarVisible && (
+        <TouchableOpacity
+          className={`absolute z-[10] bottom-[5px] right-[0px] p-[10px] items-center justify-center rounded-l-[10px] bg-primary`}
+          onPress={() => setIsSearchBarVisible(true)}
+        >
+          <Text className="text-[20px]">🔍</Text>
+        </TouchableOpacity>
+      )}
+
+      {isSearchBarVisible && <View className='w-[99%] justify-center items-center flex-row left-0 fixed bottom-[70px]' >
+        <TouchableOpacity
+          className="z-[10] left-[1px] p-[10px] items-center justify-center rounded-r-[10px] bg-wheat mr-[5px]"
+          onPress={() => setIsSearchBarVisible(true)}
+        >
+          <Image style={{ height: 30, width: 30 }} source={require('../../assets/images/myCartImage.png')} />
+          {/* <Text>3000000000000</Text> */}
+        </TouchableOpacity>
+        <TextInput
+          className='flex-1 py-[12px] px-[15px] border-[#ccc] border rounded-l-full bg-white text-base text-gray-800 outline-none focus:outline-none focus:border-[#ccc] focus:bg-white'
+          placeholder='🔍 Search by Name'
+          value={searchQuery}
+          onChangeText={setSearchQuery} // Update search query state
+        />
+        <TouchableOpacity onPress={() => { setIsSearchBarVisible(false); setSearchQuery('') }}><Image style={{ height: 50, width: 60 }} className='p-[10px] bg-primaryRed rounded-r-full' source={require('../../assets/images/crossImage.png')} /></TouchableOpacity>
+      </View>
+      }
+
+      <MyVendorsListModal vendorMobileNumber={vendorMobileNumber} isMyVendorsListModalVisible={isMyVendorsListModalVisible} setIsMyVendorsListModalVisible={setIsMyVendorsListModalVisible} setIsRemoveVendorFromMyVendorsListConfirmationModalVisible={setIsRemoveVendorFromMyVendorsListConfirmationModalVisible} setVendorMobileNumberToRemoveFromMyVendorsList={setVendorMobileNumberToRemoveFromMyVendorsList} />
+    </View>
+  )
+}
+
+export default Vendors

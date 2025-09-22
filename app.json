@@ -15,15 +15,40 @@
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundImage": "./assets/images/android-icon-background.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {
+      "serviceWorker": {
+        "jsSrcPath": "./sw.js",
+        "assets": ["all"]
+      },
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "baseUrl": "./",
+      "manifest": {
+        "name": "USCustomers",
+        "short_name": "USCustomers",
+        "start_url": "./",
+        "display": "standalone",
+        "background_color": "#E6F4FE",
+        "theme_color": "#2874F0",
+        "icons": [
+          {
+            "src": "/assets/images/icon.png",
+            "sizes": "192x192",
+            "type": "image/png"
+          },
+          {
+            "src": "/assets/images/icon.png",
+            "sizes": "512x512",
+            "type": "image/png"
+          }
+        ],
+        "description": "Your app description here."
+      }
     },
     "plugins": [
       "expo-router",
