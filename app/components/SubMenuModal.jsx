@@ -7,14 +7,14 @@ import { useAuth } from '../context/AuthContext';
 const screenWidth = Dimensions.get('window').width;
 const SubMenuModal = ({ isVisible, onClose }) => {
     const router = useRouter();
-    const { logout, vendorMobileNumber } = useAuth();
+    const { logout } = useAuth();
     const handleMenuItemPress = (path) => {
         onClose(); // Close the modal first
         router.push(path); // Navigate to the desired screen
     };
 
     return (
-        <View className='max-w-screen-sm h-full' style={{ display: isVisible ? 'flex' : 'none', zIndex: 9999999 }}>
+        <View className='h-full' style={{ display: isVisible ? 'flex' : 'none', zIndex: 9999999 }}>
             <TouchableOpacityComponent className={''} style={styles.overlay} activeOpacity={1} onPress={onClose} innerMaterial={
                 <View style={styles.menuContainer}>
                     <Text style={styles.menuTitle}>More Options</Text>
@@ -36,15 +36,15 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'flex-end', // Position the menu at the bottom, above the tab bar
         alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.3)', // Dim the background
+        backgroundColor: 'rgba(0, 0, 0, 0.2)', // Dim the background
         zIndex: 9999999
     },
     menuContainer: {
-        width: screenWidth * 0.9, // 90% of screen width
+        width: '90%', // 90% of screen width
         backgroundColor: 'white',
         borderRadius: 10,
         padding: 15,
-        marginBottom: 70, // Adjust this to sit just above your tab bar
+        marginBottom: 20, // Adjust this to sit just above your tab bar
         alignItems: 'center',
         elevation: 5, // Android shadow
         shadowColor: '#000', // iOS shadow

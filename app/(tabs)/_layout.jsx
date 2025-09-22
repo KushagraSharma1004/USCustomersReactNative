@@ -11,29 +11,6 @@ import { decryptData } from '../context/hashing'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/firebase'
 
-// const TabIcon = ({ focused, name, icon, orders }) => {
-//     if (!focused) {
-//         return (
-//             <View className='relative' >
-//                 <Image
-//                     source={icon}
-//                     style={{ height: 35, width: 35 }}
-//                 />
-//             </View>
-//         )
-//     }
-//     return (
-//         <View className='flex-col flex-1 min-w-[75px] min-h-[48px] justify-center items-center rounded-[10px] bg-primary' >
-//             <Image
-//                 source={icon}
-//                 style={{ height: 30, width: 30 }}
-//                 tintColor={'white'}
-//             />
-//             <Text style={{ fontSize: 8 }} className='text-white font-semibold text-center' >{name}</Text>
-//         </View>
-//     )
-// }
-
 const TabsLayout = () => {
     const segments = useSegments();
     const { cartCount, cartTotal } = useCart();
