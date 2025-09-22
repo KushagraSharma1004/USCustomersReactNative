@@ -1,8 +1,10 @@
-import { View, Text, Image, TouchableOpacity } from 'react-native'
-import React from 'react'
+import { View, Text, Image, TouchableOpacity, Modal, ScrollView } from 'react-native'
+import React, { useState } from 'react'
 import { Shadow } from 'react-native-shadow-2';
 
 const ItemCard = ({ item, cartItem, onAddToCart, onIncrement, onDecrement, isStockVisible = true }) => {
+  const [isItemImageModalVisible, setIsItemImageModalVisible] = useState(false)
+  const [selectedImage, setSelectedImage] = useState(item?.images?.[0] || null)
   const quantity = cartItem?.quantity || 0;
 
   const mrp = item?.prices?.[0]?.mrp || 0;
@@ -30,22 +32,24 @@ const ItemCard = ({ item, cartItem, onAddToCart, onIncrement, onDecrement, isSto
       )}
 
       {/* Product Image */}
-      <Shadow
-        distance={5}
-        startColor={'rgba(0,0,0,0.1)'}
-        offset={[0, 3]}
-        style={{ borderRadius: 7 }}
-      >
-        <Image
-          source={
-            item?.images?.[0]
-              ? { uri: item.images[0] }
-              : require('../../assets/images/placeholderImage.png')
-          }
-          className="rounded-[5px]"
-          style={{ height: 120, width: 120 }}
-        />
-      </Shadow>
+      <TouchableOpacity onPress={() => { setIsItemImageModalVisible(true) }} >
+        <Shadow
+          distance={5}
+          startColor={'rgba(0,0,0,0.1)'}
+          offset={[0, 3]}
+          style={{ borderRadius: 7 }}
+        >
+          <Image
+            source={
+              item?.images?.[0]
+                ? { uri: item.images[0] }
+                : require('../../assets/images/placeholderImage.png')
+            }
+            className="rounded-[5px]"
+            style={{ height: 120, width: 120 }}
+          />
+        </Shadow>
+      </TouchableOpacity>
 
       {/* Details Section */}
       <View className="flex-col justify-between items-center h-[120px] flex-1">
@@ -104,6 +108,71 @@ const ItemCard = ({ item, cartItem, onAddToCart, onIncrement, onDecrement, isSto
           )}
         </View>
       </View>
+
+      <Modal animationType="slide" transparent={true} visible={isItemImageModalVisible}>
+        <TouchableOpacity
+          onPress={() => setIsItemImageModalVisible(false)}
+          className="flex-1 bg-[#00000060] items-center justify-center"
+          activeOpacity={1}
+        >
+
+          <ScrollView
+            stickyHeaderIndices={[0]}
+            // StickyHeaderComponent={() => <Text className="text-center text-lg font-semibold text-black mb-2 ">{item?.name}</Text>}
+            className={`bg-white w-[95%] rounded-xl border-y-4 border-primary ${item?.description && item?.description !== "" ? 'max-h-[95%]' : 'max-h-[70%]'}`}
+            contentContainerStyle={{
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 10,
+              gap: 5,
+            }}
+          >
+            <Text className="text-center text-lg font-semibold text-black bg-white p-[5px] w-screen">{item?.name}</Text>
+            {/* Main Image */}
+            <Image
+              style={{ height: 300, width: 300 }}
+              className="rounded-xl"
+              source={selectedImage ? { uri: selectedImage } : require("../../assets/images/icon.png")}
+              resizeMode="cover"
+            />
+
+            {/* Thumbnails Row */}
+            <View className="w-full flex-row justify-between">
+              {Array.from({ length: item?.images.length }).map((_, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  className="w-[22.5%] "
+                  onPress={() => setSelectedImage(item?.images?.[idx])}
+                >
+                  {item?.images?.[idx] ? (
+                    <Image
+                      source={{ uri: item?.images?.[idx] }}
+                      className={`rounded-md h-20 ${selectedImage === item?.images?.[idx] ? "border-2 border-primary" : ""}`}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    // <View className="h-20 w-full rounded-md bg-primaryLight items-center justify-center">
+                    //   <Text className="text-xl text-white font-bold">+</Text>
+                    // </View>
+                    <></>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Description */}
+            {item?.description && item?.description !== "" && (
+              <>
+                <Text className="text-center font-bold text-base">Description</Text>
+                <View className="border border-gray-300 rounded-xl w-full p-3">
+                  <Text className="text-sm text-gray-700">{item?.description}</Text>
+                </View>
+              </>
+            )}
+          </ScrollView>
+        </TouchableOpacity>
+      </Modal>
+
     </View>
   );
 };

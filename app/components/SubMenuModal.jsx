@@ -1,32 +1,96 @@
 // components/SubMenuModal.tsx
-import React from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, Dimensions, Linking, Image } from 'react-native';
-import { useRouter } from 'expo-router'; // For navigation from within the modal
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Linking, Image, Modal, TouchableOpacity } from 'react-native';
+import { useFocusEffect, useRouter, useSegments } from 'expo-router'; // For navigation from within the modal
 import TouchableOpacityComponent from './TouchableOpacity';
 import { useAuth } from '../context/AuthContext';
-const screenWidth = Dimensions.get('window').width;
+import { decryptData } from '../context/hashing';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/firebase'
+import { ScrollView } from 'react-native-gesture-handler';
+import BouncyCheckbox from "react-native-bouncy-checkbox";
+import { useGlobalSearchParams } from 'expo-router'
+
 const SubMenuModal = ({ isVisible, onClose }) => {
+    const { vendor } = useGlobalSearchParams();
+    const vendorMobileNumber = decryptData(vendor);
+    const [vendorFullData, setVendorFullData] = useState(null)
+    const segments = useSegments();
+    const isVendorsScreenOpen = segments.includes('Vendors');
+    const isMyCartScreenOpen = segments.includes('MyCart');
     const router = useRouter();
     const { logout } = useAuth();
+    const [isVendorTermsAndConditionsModalVisible, setIsVendorTermsAndConditionsModalVisible] = useState(false)
+
     const handleMenuItemPress = (path) => {
-        onClose(); // Close the modal first
-        router.push(path); // Navigate to the desired screen
+        onClose();
+        router.push(path);
     };
+
+    const fetchVendorFullData = async () => {
+        try {
+            const vendorRef = doc(db, 'users', vendorMobileNumber)
+            const vendorDocSnap = await getDoc(vendorRef)
+            if (!vendorDocSnap.exists()) {
+                return
+            }
+            const vendorData = vendorDocSnap.data()
+
+            setVendorFullData(vendorData)
+        } catch (error) {
+            console.log('Error fetching vendor details: ', error)
+        }
+    }
+
+    useEffect(() => {
+        if (!vendorMobileNumber || vendorMobileNumber.length !== 10) {
+            return;
+        }
+        fetchVendorFullData()
+    }, [vendorMobileNumber])
 
     return (
         <View className='h-full' style={{ display: isVisible ? 'flex' : 'none', zIndex: 9999999 }}>
+            {isVendorTermsAndConditionsModalVisible &&
+                <Modal animationType='slide' transparent={true} visible={isVendorTermsAndConditionsModalVisible}>
+                    <View className='flex-1 bg-[#00000060] items-center justify-center' >
+                        <View className='bg-white p-[10px] w-[90%] h-[90%] rounded-[10px]' >
+                            <TouchableOpacity className='absolute top-[10px] right-[10px] z-50' onPress={() => { setIsVendorTermsAndConditionsModalVisible(false) }} ><Image style={{ height: 30, width: 30 }} source={require('../../assets/images/crossImage.png')} /></TouchableOpacity>
+                            <View className='p-[10px] w-full rounded-[10px] max-w-[90%]' ><Text className='text-center text-primaryRed text-[15px]' ><Text className='text-[#E48108FD] font-bold' >{vendorFullData?.businessName}'s</Text> Terms and Condition*</Text></View>
+                            <ScrollView className='max-h-[85%] p-[5px] border border-[#ccc] rounded-[10px]' >
+                                <Text>{vendorFullData?.termsAndConditions}</Text>
+                            </ScrollView>
+                            <View className='flex-row items-center justify-center gap-[5px] p-[10px]' >
+                                <BouncyCheckbox
+                                    isChecked={true}
+                                    disableText
+                                    fillColor="green"
+                                    size={25}
+                                    useBuiltInState={false}
+                                    iconStyle={{ borderRadius: 5 }}        // outer icon container radius
+                                    innerIconStyle={{ borderRadius: 5 }}   // inner icon radius (important)
+                                    onPress={async () => {
+                                    }}
+                                />
+                                <Text className='text-[15px] leading-none' >I Agree</Text>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
+            }
             <TouchableOpacityComponent className={''} style={styles.overlay} activeOpacity={1} onPress={onClose} innerMaterial={
                 <View style={styles.menuContainer}>
                     <Text style={styles.menuTitle}>More Options</Text>
-                    <TouchableOpacityComponent className={'flex-row items-center justify-center gap-[5px]'} style={styles.menuItem} onPress={() => handleMenuItemPress('/Profile')} innerMaterial={<><Image source={require('../../assets/images/profileImage.png')} style={{ height: 20, width: 20 }}/><Text style={styles.menuItemText}>Profile</Text></>}/>
-                    <TouchableOpacityComponent className={''} style={styles.menuItem} onPress={() => handleMenuItemPress('/Settings')} innerMaterial={<Text style={styles.menuItemText}>Settings</Text>}/>
-                    <TouchableOpacityComponent className={''} style={styles.menuItem} onPress={() => Linking.openURL("https://unoshops.com/?AboutUs=true")} innerMaterial={<Text style={styles.menuItemText}>About Us</Text>}/>
-                    <TouchableOpacityComponent className={''} style={styles.menuItem} onPress={() => Linking.openURL("https://unoshops.com/?VendorsTermsAndConditions=true")} innerMaterial={<Text style={styles.menuItemText}>Terms & Conditions</Text>}/>
-                    <TouchableOpacityComponent className={''} style={styles.menuItem} onPress={() => Linking.openURL("https://unoshops.com/?PrivacyPolicy=true")} innerMaterial={<Text style={styles.menuItemText}>Privacy Policy</Text>}/>
-                    <TouchableOpacityComponent className={''} style={styles.menuItem} onPress={() => Linking.openURL("https://unoshops.com/?ContactUs=true")} innerMaterial={<Text style={styles.menuItemText}>Contact Us</Text>}/>
-                    <TouchableOpacityComponent className={''} style={styles.menuItem} onPress={logout} innerMaterial={<Text style={styles.logoutText}>Logout</Text>}/>
+                    <TouchableOpacityComponent className={'flex-row items-center justify-center gap-[5px]'} style={styles.menuItem} onPress={() => handleMenuItemPress('/Profile')} innerMaterial={<><Image source={require('../../assets/images/profileImage.png')} style={{ height: 20, width: 20 }} /><Text style={styles.menuItemText}>Profile</Text></>} />
+                    <TouchableOpacityComponent className={''} style={styles.menuItem} onPress={() => handleMenuItemPress('/Settings')} innerMaterial={<Text style={styles.menuItemText}>Settings</Text>} />
+                    {isVendorsScreenOpen || isMyCartScreenOpen ? <TouchableOpacityComponent className={''} style={styles.menuItem} onPress={() => { setIsVendorTermsAndConditionsModalVisible(true); onClose() }} innerMaterial={<Text style={styles.menuItemText}><Text className='text-[#E48108F5]' >{vendorFullData?.businessName}</Text>'s Terms & Conditions</Text>} /> : null}
+                    <TouchableOpacityComponent className={''} style={styles.menuItem} onPress={() => Linking.openURL("https://unoshops.com/?AboutUs=true")} innerMaterial={<Text style={styles.menuItemText}>About Us</Text>} />
+                    <TouchableOpacityComponent className={''} style={styles.menuItem} onPress={() => Linking.openURL("https://unoshops.com/?VendorsTermsAndConditions=true")} innerMaterial={<Text style={styles.menuItemText}>Terms & Conditions</Text>} />
+                    <TouchableOpacityComponent className={''} style={styles.menuItem} onPress={() => Linking.openURL("https://unoshops.com/?PrivacyPolicy=true")} innerMaterial={<Text style={styles.menuItemText}>Privacy Policy</Text>} />
+                    <TouchableOpacityComponent className={''} style={styles.menuItem} onPress={() => Linking.openURL("https://unoshops.com/?ContactUs=true")} innerMaterial={<Text style={styles.menuItemText}>Contact Us</Text>} />
+                    <TouchableOpacityComponent className={''} style={styles.menuItem} onPress={logout} innerMaterial={<Text style={styles.logoutText}>Logout</Text>} />
                 </View>
-            }/>
+            } />
         </View>
     );
 };
@@ -72,7 +136,8 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#2874F0', // Or your primary color
         fontWeight: '600',
-        zIndex: 9999999
+        zIndex: 9999999,
+        textAlign:'center'
     },
     logoutText: {
         fontSize: 16,

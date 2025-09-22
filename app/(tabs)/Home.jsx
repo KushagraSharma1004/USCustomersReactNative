@@ -386,9 +386,9 @@ const Home = () => {
         {selectedCategoryId && <TouchableOpacity onPress={() => setSelectedCategoryId(null)} className='rounded-l-[20px] bg-primary items-center justify-center p-[5px]' ><Text className='text-white text-[12px]' >Show</Text><Text className='text-white text-[12px]' >All</Text></TouchableOpacity>}
       </View>
 
-      {/* Vendors FlashList */}
+      {/* Vendors FlatList */}
       <View className={`${selectedCategoryId ? 'bg-primaryLight' : 'bg-white'} w-[98%] self-center rounded-[5px] flex-1`}>
-        <FlashList
+        <FlatList
           data={sortedVendors} // Now uses the sortedVendors which includes search filtering
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingBottom: 50, width: '98%', alignSelf: 'center', paddingTop: 5 }}

@@ -48,6 +48,7 @@ export default function RootLayout() {
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen name="Profile" options={{ headerShown: false }} />
               <Stack.Screen name="MyReferrals" options={{ headerShown: false }} />
+              <Stack.Screen name="Settings" options={{ headerShown: false }} />
             </Stack>
             <BottomSheet
               ref={addressSheetRef}
