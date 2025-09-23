@@ -1,9 +1,9 @@
 {
-    "name": "USCustomers",
-    "short_name": "USCustomers",
+    "name": "US Customers",
+    "short_name": "US Customers",
     "start_url": "/",
     "display": "standalone",
-    "background_color": "#E6F4FE",
+    "background_color": "#2874F0",
     "theme_color": "#2874F0",
     "icons": [
       {
