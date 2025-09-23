@@ -93,7 +93,7 @@ const TabsLayout = () => {
                         tabBarActiveBackgroundColor: '#2874F0',
                         tabBarActiveTintColor: 'white',
                         // tabBarStyle: customerMobileNumber.length === 10 && (isMyCartScreenOpen ? cartCount !== 0 : true) ? {
-                            tabBarStyle: customerMobileNumber.length === 10 ? {
+                        tabBarStyle: customerMobileNumber.length === 10 ? {
                             borderTopLeftRadius: 10,
                             borderTopRightRadius: 10,
                             borderTopWidth: 5,
@@ -132,6 +132,8 @@ const TabsLayout = () => {
                         options={{
                             headerShown: true,
                             title: 'My Cart',
+                            tabBarLabel: `₹ ${cartTotal}`,
+                            tabBarLabelStyle: { marginTop: 1, textAlign: 'center', fontSize: 12, color: 'black', backgroundColor: '#f5deb3', paddingHorizontal: 5, borderRadius: 5, },
                             tabBarIcon: ({ focused }) => <Image style={{ height: 35, width: 35, tintColor: focused ? 'white' : '' }} source={require('../../assets/images/myCartImage.png')} />,
                             tabBarBadge: cartCount > 0 ? cartCount : null,
                             href: isVendorsScreenOpen ? undefined : null,

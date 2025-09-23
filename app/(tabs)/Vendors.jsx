@@ -492,7 +492,7 @@ const Vendors = () => {
         />
       </ScrollView>
 
-      {!isSearchBarVisible && (
+      {/* {!isSearchBarVisible && (
         <TouchableOpacity
           className="absolute bottom-[5px] z-[10] left-[1px] p-[10px] items-center justify-center rounded-r-[10px] bg-wheat"
           onPress={() => router.push('/MyCart')}
@@ -501,7 +501,7 @@ const Vendors = () => {
           <Image style={{ height: 30, width: 30 }} source={require('../../assets/images/myCartImage.png')} />
           {cartTotal > 0 && <Text className='font-bold text-[12px]' >₹{cartTotal}</Text>}
         </TouchableOpacity>
-      )}
+      )} */}
 
       {!isSearchBarVisible && (
         <TouchableOpacity
