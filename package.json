@@ -11,7 +11,8 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "build": "expo export --platform web --output-dir dist",
-    "predeploy": "npm run build && npm run fix-paths && npm run add-cname",
+    "add-favicon": "node ./scripts/add-favicon.js",
+    "predeploy": "npm run build && npm run fix-paths && npm run add-cname && npm run add-favicon",
     "fix-paths": "sed -i '' 's|=\"/_expo/|=\"./_expo/|g' dist/index.html",
     "add-cname": "echo 'customers.unoshops.com' > dist/CNAME && touch dist/.nojekyll",
     "deploy": "gh-pages -d dist --dotfiles"

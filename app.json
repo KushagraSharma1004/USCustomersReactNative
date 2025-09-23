@@ -26,8 +26,8 @@
         "assets": ["all"]
       },
       "output": "static",
-      "favicon": "./assets/images/favicon.png",
-      "baseUrl": "./",
+      "favicon": "favicon.png",
+      "baseUrl": "/",
       "manifest": {
         "name": "USCustomers",
         "short_name": "USCustomers",
@@ -37,12 +37,12 @@
         "theme_color": "#2874F0",
         "icons": [
           {
-            "src": "./assets/images/icon-192x192.png",
+            "src": "icon-192x192.png",
             "sizes": "192x192",
             "type": "image/png"
           },
           {
-            "src": "./assets/images/icon-512x512.png",
+            "src": "icon-512x512.png",
             "sizes": "512x512",
             "type": "image/png"
           }
