@@ -10,6 +10,7 @@ import { addDoc, collection, deleteDoc, doc, getDoc, serverTimestamp, setDoc } f
 import { db } from '@/firebase'
 import MyVendorsListModal from '../components/MyVendorsListModal'
 import html2canvas from 'html2canvas';
+import Loader from '../components/Loader'
 // import { captureRef } from "react-native-view-shot";
 
 /**
@@ -121,6 +122,7 @@ const Home = () => {
   const [addVendorInMyVendorsListBusinessName, setAddVendorInMyVendorsListBusinessName] = useState(null)
   const [addVendorInMyVendorsListMobileNumber, setAddVendorInMyVendorsListMobileNumber] = useState(null)
   const vendorCardRefs = useRef({});
+  const [isCommonLoaderVisible, setIsCommonLoaderVisible] = useState(false)
 
   const handleRemoveVendorFromMyVendorsList = async () => {
     try {
@@ -324,6 +326,8 @@ const Home = () => {
     <View className="gap-[1px] flex-1">
       <Header setIsMyVendorsListModalVisible={setIsMyVendorsListModalVisible} />
 
+      {isCommonLoaderVisible && <Loader/>}
+      
       {isRemoveVendorFromMyVendorsListConfirmationModalVisible &&
         <ConfirmationModal
           setIsConfirmModalVisible={setIsRemoveVendorFromMyVendorsListConfirmationModalVisible}
@@ -399,14 +403,18 @@ const Home = () => {
             }
             const cardRef = vendorCardRefs.current[item.id]
           
-            const handleShare = () => {
+            const handleShare = async () => {
+              setIsCommonLoaderVisible(true)
+              await new Promise(requestAnimationFrame);
+              
               if (!cardRef.current) {
                 console.error('Card element ref is null. Cannot capture image.');
                 alert('Error capturing card image. Please try again.');
+                setIsCommonLoaderVisible(false)
                 return;
               }
             
-              const vendorLink = `https://customers.unoshops.com/?fromQR=true&vendorMobileNumberFromQR=${item.vendorMobileNumber}`;
+              const vendorLink = `https://customers.unoshops.com/Vendors?fromQR=true&vendor=${encodeURIComponent(encryptData(item.vendorMobileNumber))}`;
             
               // Capture card as canvas
               html2canvas(cardRef.current, {
@@ -417,6 +425,7 @@ const Home = () => {
                 canvas.toBlob(async blob => {
                   if (!blob) {
                     alert('Could not capture card image.');
+                    setIsCommonLoaderVisible(false)
                     return;
                   }
             
@@ -431,6 +440,7 @@ const Home = () => {
                         files: [file],
                       });
                       console.log('Vendor card and link shared successfully!');
+                      setIsCommonLoaderVisible(false)
                     } else {
                       // fallback: download + copy link
                       const imgUrl = canvas.toDataURL('image/png');
@@ -443,15 +453,16 @@ const Home = () => {
             
                       await navigator.clipboard.writeText(vendorLink);
                       alert(`Vendor card downloaded. Link copied to clipboard: ${vendorLink}`);
+                      setIsCommonLoaderVisible(false)
                     }
                   } catch (err) {
                     console.error('Error sharing vendor card:', err);
                     alert('Could not share vendor card.');
+                    setIsCommonLoaderVisible(false)
                   }
                 }, 'image/png');
               });
             };
-            
             
             return (
               <TouchableOpacity
