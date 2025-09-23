@@ -63,7 +63,7 @@ const Vendors = () => {
       setVendorFullData(vendorData)
       fetchHasCustomerReadVendorTermsAndConditions(vendorData)
     } catch (error) {
-      console.log('Error fetching vendor details: ', error)
+      // console.log('Error fetching vendor details: ', error)
     } finally {
       setIsCommonLoaderVisible(false)
     }
@@ -359,6 +359,7 @@ const Vendors = () => {
                 disableText
                 fillColor="green"
                 size={25}
+                iconComponent={<Image style={{height:15, width:15}} source={require('../../assets/images/checkImage.png')} />}
                 useBuiltInState={false}
                 iconStyle={{ borderRadius: 5 }}        // outer icon container radius
                 innerIconStyle={{ borderRadius: 5 }}   // inner icon radius (important)

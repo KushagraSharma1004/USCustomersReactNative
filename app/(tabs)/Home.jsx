@@ -3,14 +3,12 @@ import { View, Text, FlatList, Image, Dimensions, TouchableOpacity, Linking, Act
 import { useAuth } from '../context/AuthContext'
 import Header from '../components/Header'
 import { FullStarSVG, PartialStarSVG, EmptyStarSVG } from '../components/StarSVGs'
-import { FlashList } from "@shopify/flash-list";
 import { useRouter } from 'expo-router'
 import { encryptData } from '../context/hashing'
 import ConfirmationModal from '../components/ConfirmationModal';
 import { addDoc, collection, deleteDoc, doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { db } from '@/firebase'
 import MyVendorsListModal from '../components/MyVendorsListModal'
-import ViewShot from "react-native-view-shot";
 import html2canvas from 'html2canvas';
 // import { captureRef } from "react-native-view-shot";
 
@@ -397,12 +395,68 @@ const Home = () => {
             const vendorLocation = item.vendorAddress?.vendorLocation
             const isVendorInMyVendorsList = myVendors.find(myVendor => myVendor.vendorMobileNumber === item.vendorMobileNumber)
             if (!vendorCardRefs.current[item.id]) {
-              vendorCardRefs.current[item.id] = React.createRef();
+              vendorCardRefs.current[item.id] = React.createRef()
             }
-            const domRef = vendorCardRefs.current[item.id];
+            const cardRef = vendorCardRefs.current[item.id]
+          
+            const handleShare = () => {
+              if (!cardRef.current) {
+                console.error('Card element ref is null. Cannot capture image.');
+                alert('Error capturing card image. Please try again.');
+                return;
+              }
+            
+              const vendorLink = `https://customers.unoshops.com/?fromQR=true&vendorMobileNumberFromQR=${item.vendorMobileNumber}`;
+            
+              // Capture card as canvas
+              html2canvas(cardRef.current, {
+                useCORS: true,
+                scale: 2,
+                logging: false,
+              }).then(canvas => {
+                canvas.toBlob(async blob => {
+                  if (!blob) {
+                    alert('Could not capture card image.');
+                    return;
+                  }
+            
+                  const file = new File([blob], `${item.businessName}_card.png`, { type: 'image/png' });
+            
+                  try {
+                    if (navigator.share && navigator.canShare?.({ files: [file] })) {
+                      await navigator.share({
+                        title: `${item.businessName} - Check them out on UnoShops!`,
+                        text: `Here's ${item.businessName}'s card from UnoShops! You can find them at ${item.vendorAddressDetails?.vendorBusinessCity}.`,
+                        url: vendorLink,
+                        files: [file],
+                      });
+                      console.log('Vendor card and link shared successfully!');
+                    } else {
+                      // fallback: download + copy link
+                      const imgUrl = canvas.toDataURL('image/png');
+                      const a = document.createElement('a');
+                      a.href = imgUrl;
+                      a.download = `${item.businessName}_card.png`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+            
+                      await navigator.clipboard.writeText(vendorLink);
+                      alert(`Vendor card downloaded. Link copied to clipboard: ${vendorLink}`);
+                    }
+                  } catch (err) {
+                    console.error('Error sharing vendor card:', err);
+                    alert('Could not share vendor card.');
+                  }
+                }, 'image/png');
+              });
+            };
+            
+            
             return (
               <TouchableOpacity
-                ref={domRef}
+                ref={cardRef}
+                // ref={domRef}
                 onPress={() => {
                   if (item.isVendorActive) {
                     if (isVendorInMyVendorsList) {
@@ -426,7 +480,10 @@ const Home = () => {
                   />
                 )}
                 <View className="w-full flex-row gap-[5px]">
-                  <TouchableOpacity className="absolute top-[5px] right-[5px] z-50" onPress={() => shareVendorCard(item.id)}>
+                  <TouchableOpacity className="absolute top-[5px] right-[5px] z-50" onPress={() => {
+                    // shareVendorCard(item.id)
+                    handleShare()
+                    }}>
                     <Image
                       source={require('../../assets/images/shareImage.png')}
                       style={{ height: 25, width: 25 }}
