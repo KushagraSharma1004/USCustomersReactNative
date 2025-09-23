@@ -7,11 +7,12 @@ import { CartProvider } from "./context/CartContext";
 import { AddressSheetProvider } from "./context/AddressSheetContext";
 import BottomSheet, { BottomSheetBackdrop } from "@gorhom/bottom-sheet";
 import AddressSheet from "./components/AddressSheet";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 export default function RootLayout() {
   const addressSheetRef = useRef(null)
   const snapPointsForAddressSheet = useMemo(() => [1, '90%'], [])
+  const [isAddressSheetVisible, setIsAddressSheetVisible] = useState(false);
 
   const renderBackdrop = useCallback(
     (props) => (
@@ -27,8 +28,16 @@ export default function RootLayout() {
   )
 
   const openAddressSheet = () => {
-    addressSheetRef.current?.snapToIndex(1)
-  }
+    setIsAddressSheetVisible(true);
+    setTimeout(() => {
+      addressSheetRef.current?.snapToIndex(1);
+    }, 50); // small timeout to ensure sheet ref is ready
+  };
+
+  const closeAddressSheet = () => {
+    addressSheetRef.current?.close();
+    setTimeout(() => setIsAddressSheetVisible(false), 300); // wait for close animation
+  };
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
@@ -50,7 +59,7 @@ export default function RootLayout() {
               <Stack.Screen name="MyReferrals" options={{ headerShown: false }} />
               <Stack.Screen name="Settings" options={{ headerShown: false }} />
             </Stack>
-            <BottomSheet
+            {/* <BottomSheet
               ref={addressSheetRef}
               snapPoints={snapPointsForAddressSheet}
               enableDynamicSizing={false}
@@ -61,7 +70,26 @@ export default function RootLayout() {
               handleComponent={() => null}
             >
               <AddressSheet onClose={() => addressSheetRef.current?.close()} />
-            </BottomSheet>
+            </BottomSheet> */}
+            {isAddressSheetVisible && (
+              <BottomSheet
+                ref={addressSheetRef}
+                snapPoints={snapPointsForAddressSheet}
+                enableDynamicSizing={false}
+                enablePanDownToClose
+                backgroundStyle={{
+                  borderTopWidth: 5,
+                  borderTopColor: "#2874F0",
+                  backgroundColor: "#2874F0",
+                }}
+                index={-1} // start closed
+                backdropComponent={renderBackdrop}
+                handleComponent={() => null}
+                onClose={closeAddressSheet}
+              >
+                <AddressSheet onClose={closeAddressSheet} />
+              </BottomSheet>
+            )}
           </AddressSheetProvider>
         </CartProvider>
       </AuthProvider>
