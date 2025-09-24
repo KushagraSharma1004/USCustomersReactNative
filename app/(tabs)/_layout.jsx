@@ -24,11 +24,14 @@ const TabsLayout = () => {
     const [selectedDeliveryMode, setSelectedDeliveryMode] = useState('selectADeliveryMode')
     const params = useGlobalSearchParams()
     const [customerMobileNumber, setCustomerMobileNumber] = useState(decryptData(localStorage.getItem('customerMobileNumber')) || '');
+    const [finalAmount, setFinalAmount] = useState(decryptData(localStorage.getItem('finalAmount')) || '')
 
     useEffect(() => {
         const interval = setInterval(() => {
-            const val = decryptData(localStorage.getItem('customerMobileNumber')) || '';
-            setCustomerMobileNumber(val);
+            const newCustomerMobileNumber = decryptData(localStorage.getItem('customerMobileNumber')) || '';
+            const newFinalAmount = decryptData(localStorage.getItem('finalAmount')) || '';
+            setFinalAmount(newFinalAmount)
+            setCustomerMobileNumber(newCustomerMobileNumber);
         }, 500); // check every 500ms
 
         return () => clearInterval(interval);
@@ -151,7 +154,10 @@ const TabsLayout = () => {
                             },
                             headerRight: () => {
                                 return (
-                                    <Text className='text-primary p-[10px] text-[14px]' >Total: <Text className='font-bold text-[16px]' >₹{selectedDeliveryMode === 'homeDelivery' ? Number(vendorFullData?.freeDeliveryAboveAmount || 0) === 0 ? cartTotal + Number(vendorFullData.deliveryCharge) : Number(vendorFullData?.freeDeliveryAboveAmount || 0) - cartTotal > 0 ? cartTotal + Number(vendorFullData.deliveryCharge) : cartTotal : cartTotal}</Text></Text>
+                                    <Text className='text-primary p-[10px] text-[14px]' >Total: <Text className='font-bold text-[16px]' >₹
+                                    {/* {selectedDeliveryMode === 'homeDelivery' ? Number(vendorFullData?.freeDeliveryAboveAmount || 0) === 0 ? cartTotal + Number(vendorFullData.deliveryCharge) : Number(vendorFullData?.freeDeliveryAboveAmount || 0) - cartTotal > 0 ? cartTotal + Number(vendorFullData.deliveryCharge) : cartTotal : cartTotal} */}
+                                    {finalAmount}
+                                    </Text></Text>
                                 )
                             }
                         }}

@@ -35,6 +35,7 @@ export const AuthProvider = ({ children }) => {
   const [allOrders, setAllOrders] = useState(null)
   const [myVendors, setMyVendors] = useState(null)
   const [customerReferrals, setCustomerReferrals] = useState(null)
+  const [vendorOffers, setVendorOffers] = useState(null)
   // Restore auth state from localStorage on mount
 
   useEffect(() => {
@@ -230,6 +231,13 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
+  const fetchVendorOffers = async (vendorMobileNumber) => {
+    const vendorOffersRef = collection(db, 'users', vendorMobileNumber, 'vendorOffers')
+    const vendorOffersSnap = await getDocs(vendorOffersRef)
+    const vendorOffers = vendorOffersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    setVendorOffers(vendorOffers)
+  }
+
   const logout = () => {
     setCustomerMobileNumber('');
     setCustomerPassword('');
@@ -297,7 +305,10 @@ export const AuthProvider = ({ children }) => {
     fetchMyVendors,
     customerReferrals,
     setCustomerReferrals,
-    fetchCustomerReferrals
+    fetchCustomerReferrals,
+    vendorOffers,
+    setVendorOffers,
+    fetchVendorOffers
   };
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;

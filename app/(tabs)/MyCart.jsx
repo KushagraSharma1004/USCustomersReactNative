@@ -6,7 +6,7 @@ import ItemCard from '../components/ItemCard';
 import { FlashList } from "@shopify/flash-list";
 import { useAuth } from '../context/AuthContext';
 import { useCart } from "../context/CartContext";
-import { decryptData } from '../context/hashing'
+import { decryptData, encryptData } from '../context/hashing'
 import { useFocusEffect, useRouter } from 'expo-router';
 import Loader from '../components/Loader'
 import { useAddressSheet } from '../context/AddressSheetContext'
@@ -15,7 +15,7 @@ import { RatingStars } from '../components/RatingStars';
 
 const MyCart = () => {
   const router = useRouter()
-  const { customerMobileNumber, customerAddress, customerFullData } = useAuth()
+  const { customerMobileNumber, customerAddress, customerFullData, vendorOffers } = useAuth()
   const { cartItems, fetchCartItems, cartCount, cartTotal } = useCart()
   const { openAddressSheet } = useAddressSheet()
   const vendorMobileNumber = decryptData(localStorage.getItem('vendor'))
@@ -33,6 +33,107 @@ const MyCart = () => {
   const [isRatingModalVisible, setIsRatingModalVisible] = useState(false)
   const [rating, setRating] = useState(0)
   const [ratingComment, setRatingComment] = useState('')
+  const [isOffersSectionOpen, setIsOffersSectionOpen] = useState(false)
+  const [applicableOffers, setApplicableOffers] = useState([]);
+  const [selectedOffers, setSelectedOffers] = useState([]);
+  const [finalAmount, setFinalAmount] = useState(0);
+  const [totalDiscount, setTotalDiscount] = useState(0);
+
+  const calculateOffers = useCallback(() => {
+    if (!vendorOffers || !cartItems || Object.keys(cartItems).length === 0) {
+      setApplicableOffers([]);
+      setTotalDiscount(0);
+      setFinalAmount(cartTotal);
+      return;
+    }
+
+    // Find all applicable offers (respecting minimum order amount)
+    const allApplicableOffers = vendorOffers.filter(offer => {
+      if (offer.minimumOrderAmount && cartTotal < offer.minimumOrderAmount) {
+        return false;
+      }
+      return true;
+    });
+
+    setApplicableOffers(allApplicableOffers);
+
+    // Calculate discount based on selected offers only (no auto-selection)
+    let discount = 0;
+
+    if (selectedOffers.length > 0) {
+      // Use manually selected offer (only one allowed)
+      const offerId = selectedOffers[0];
+      const offer = allApplicableOffers.find(o => o.id === offerId);
+      if (offer) {
+        discount = calculateOfferDiscount(offer, cartTotal, cartItems);
+      }
+    }
+
+    // Calculate final amount with delivery charge if applicable
+    let final = Math.max(0, cartTotal - discount);
+
+    if (selectedDeliveryMode === 'homeDelivery') {
+      const deliveryCharge = Number(vendorFullData?.deliveryCharge) || 0;
+      const freeDeliveryAbove = Number(vendorFullData?.freeDeliveryAboveAmount || 0);
+
+      if (freeDeliveryAbove === 0 || final < freeDeliveryAbove) {
+        final += deliveryCharge;
+      }
+    }
+
+    setTotalDiscount(discount);
+    setFinalAmount(final);
+  }, [vendorOffers, cartItems, cartTotal, selectedOffers, selectedDeliveryMode, vendorFullData]);
+
+  useEffect(() => {
+    localStorage.setItem('finalAmount', encryptData(String(finalAmount)))
+  }, [finalAmount])
+
+  // Helper function to calculate discount for a single offer
+  const calculateOfferDiscount = (offer, cartTotal, cartItems) => {
+    let discount = 0;
+
+    if (offer.applicableOn === 'All Items') {
+      // Apply to entire cart
+      if (offer.valueType === '₹') {
+        discount = Math.min(offer.value, cartTotal);
+      } else if (offer.valueType === '%') {
+        discount = (cartTotal * offer.value) / 100;
+      }
+    } else {
+      // Apply to specific items only
+      const applicableItems = offer.applicableItems || [];
+      let applicableItemsTotal = 0;
+
+      Object.values(cartItems).forEach(cartItem => {
+        if (applicableItems.includes(cartItem.name)) {
+          applicableItemsTotal += cartItem.price * cartItem.quantity;
+        }
+      });
+
+      if (applicableItemsTotal > 0) {
+        if (offer.valueType === '₹') {
+          discount = Math.min(offer.value, applicableItemsTotal);
+        } else if (offer.valueType === '%') {
+          discount = (applicableItemsTotal * offer.value) / 100;
+        }
+      }
+    }
+
+    return discount;
+  };
+
+  const toggleOfferSelection = (offerId) => {
+    if (selectedOffers.includes(offerId)) {
+      setSelectedOffers([])
+    } else {
+      setSelectedOffers([offerId])
+    }
+  };
+
+  useEffect(() => {
+    calculateOffers();
+  }, [calculateOffers]);
 
   useFocusEffect(
     useCallback(() => {
@@ -342,29 +443,61 @@ const MyCart = () => {
       }
 
       // Create order details
+      // const orderDetails = {
+      //   address: customerAddress,
+      //   businessName: vendorFullData?.businessName || '',
+      //   customerMobileNumber,
+      //   customerName: customerFullData?.customerName || '',
+      //   deliveryCharge: Number(vendorFullData.freeDeliveryAboveAmount || 0) !== 0 ? Number(vendorFullData.freeDeliveryAboveAmount) - cartTotal > 0 ? deliveryCharge : 0 : deliveryCharge,
+      //   deliveryMode: selectedDeliveryMode === 'homeDelivery' ? 'Home Delivery' : 'Takeaway/Pickup',
+      //   items: itemsToOrder.map(({ id, name, quantity, price, imageURL }) => ({
+      //     id, name, quantity, price, imageURL
+      //   })),
+      //   orderStatus: 'Pending',
+      //   orderTime: new Date(),
+      //   totalAmount: cartTotal || 0, // Calculate total
+      //   vendorMobileNumber,
+      //   vendorName: vendorFullData?.vendorName || '',
+      //   pickupAddress: selectedDeliveryMode === 'takeaway' ? `${vendorFullData.vendorBusinessPlotNumberOrShopNumber}, ${vendorFullData.vendorBusinessComplexNameOrBuildingName}, ${vendorFullData.vendorBusinessLandmark}, ${vendorFullData.vendorBusinessRoadNameOrStreetName}, ${vendorFullData.vendorBusinessVillageNameOrTownName}, ${vendorFullData.vendorBusinessCity}, ${vendorFullData.vendorBusinessState} - ${vendorFullData.vendorBusinessPincode}` : '',
+      //   pickupCoordinates: selectedDeliveryMode === 'takeaway' ? { longitude: vendorFullData.vendorLocation?.longitude, latitude: vendorFullData.vendorLocation?.latitude } : {},
+      //   customerComment: isOrderCommentAdded ? orderComment : ''
+      // };
       const orderDetails = {
         address: customerAddress,
         businessName: vendorFullData?.businessName || '',
         customerMobileNumber,
         customerName: customerFullData?.customerName || '',
-        deliveryCharge: Number(vendorFullData.freeDeliveryAboveAmount || 0) !== 0 ? Number(vendorFullData.freeDeliveryAboveAmount) - cartTotal > 0 ? deliveryCharge : 0 : deliveryCharge,
+        deliveryCharge: Number(vendorFullData.freeDeliveryAboveAmount || 0) !== 0 ? Number(vendorFullData.freeDeliveryAboveAmount) - (cartTotal - totalDiscount) > 0 ? deliveryCharge : 0 : deliveryCharge,
         deliveryMode: selectedDeliveryMode === 'homeDelivery' ? 'Home Delivery' : 'Takeaway/Pickup',
         items: itemsToOrder.map(({ id, name, quantity, price, imageURL }) => ({
           id, name, quantity, price, imageURL
         })),
         orderStatus: 'Pending',
         orderTime: new Date(),
-        totalAmount: cartTotal || 0, // Calculate total
+        totalAmount: finalAmount || 0, // Use finalAmount instead of cartTotal
         vendorMobileNumber,
         vendorName: vendorFullData?.vendorName || '',
         pickupAddress: selectedDeliveryMode === 'takeaway' ? `${vendorFullData.vendorBusinessPlotNumberOrShopNumber}, ${vendorFullData.vendorBusinessComplexNameOrBuildingName}, ${vendorFullData.vendorBusinessLandmark}, ${vendorFullData.vendorBusinessRoadNameOrStreetName}, ${vendorFullData.vendorBusinessVillageNameOrTownName}, ${vendorFullData.vendorBusinessCity}, ${vendorFullData.vendorBusinessState} - ${vendorFullData.vendorBusinessPincode}` : '',
         pickupCoordinates: selectedDeliveryMode === 'takeaway' ? { longitude: vendorFullData.vendorLocation?.longitude, latitude: vendorFullData.vendorLocation?.latitude } : {},
-        customerComment: isOrderCommentAdded ? orderComment : ''
+        customerComment: isOrderCommentAdded ? orderComment : '',
+        appliedOffers: selectedOffers.map(offerId => {
+          const offer = applicableOffers.find(o => o.id === offerId);
+          return offer ? {
+            id: offer.id,
+            title: offer.title,
+            discount: calculateOfferDiscount(offer, cartTotal, cartItems)
+          } : null;
+        }).filter(Boolean),
+        totalDiscount: totalDiscount // Add total discount to order details
       };
 
-      if (Number(vendorFullData.freeDeliveryAboveAmount || 0) !== 0 ? Number(vendorFullData.freeDeliveryAboveAmount) - cartTotal > 0 : true) {
-        orderDetails.totalAmount += Number(deliveryCharge);
-      }
+      // if (Number(vendorFullData.freeDeliveryAboveAmount || 0) !== 0 ? Number(vendorFullData.freeDeliveryAboveAmount) - finalAmount > 0 : true) {
+      //   orderDetails.totalAmount += Number(deliveryCharge);
+      // }
+
+      // if (Number(vendorFullData.freeDeliveryAboveAmount || 0) !== 0 ? Number(vendorFullData.freeDeliveryAboveAmount) - cartTotal > 0 : true) {
+      //   orderDetails.totalAmount += Number(deliveryCharge);
+      // }
 
       if (!orderDetails.address || orderDetails.items.length === 0 || orderDetails.totalAmount <= 0) {
         alert('Order details are incomplete or total amount is zero.');
@@ -404,6 +537,7 @@ const MyCart = () => {
       setSelectedDeliveryMode('selectADeliveryMode')
       setDeliveryModeError('')
       setIsRatingModalVisible(true)
+      localStorage.removeItem('finalAmount')
 
       // Clear cart or reset UI states as needed
       await fetchCartItems();
@@ -441,36 +575,36 @@ const MyCart = () => {
   if (isRatingModalVisible) {
     return (
       <Modal animate='heart-beat' visible={true} transparent={true}>
-      <View className='flex-1 items-center justify-center bg-[#00000060]' >
-        <View className='w-[96%] p-[20px] rounded-[10px] bg-white items-center justify-center gap-[10px]' >
-          <Text>How was your experience with</Text>
-          <Text className='font-bold text-primary text-[15px]' >{vendorFullData?.businessName || ''}?</Text>
-          <RatingStars rating={rating} setRating={setRating} />
-          <TextInput
-            value={ratingComment}
-            onChangeText={setRatingComment}
-            multiline
-            numberOfLines={5}
-            placeholder='Leave a comment (Optional)'
-            className='rounded-[10px] border border-[#ccc] p-[10px] w-full'
-          />
-          <View className='flex-row w-full gap-[10px]'>
-            <TouchableOpacity
-              className='flex-1 p-[10px] rounded-[10px] bg-primary'
-              disabled={isCommonLoaderVisible || rating === 0}
-              onPress={handleSubmitRating}
-            >
-              <Text className='text-white text-center'>{isCommonLoaderVisible ? "Submitting..." : "Submit Rating"}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              className='flex-1 p-[10px] rounded-[10px] bg-[#ccc]'
-              onPress={() => { setIsRatingModalVisible(false); router.push(`/Vendors/?vendor=${encodeURIComponent(localStorage.getItem('vendor'))}`) }}
-            >
-              <Text className='text-white text-center'>Maybe later</Text>
-            </TouchableOpacity>
+        <View className='flex-1 items-center justify-center bg-[#00000060]' >
+          <View className='w-[96%] p-[20px] rounded-[10px] bg-white items-center justify-center gap-[10px]' >
+            <Text>How was your experience with</Text>
+            <Text className='font-bold text-primary text-[15px]' >{vendorFullData?.businessName || ''}?</Text>
+            <RatingStars rating={rating} setRating={setRating} />
+            <TextInput
+              value={ratingComment}
+              onChangeText={setRatingComment}
+              multiline
+              numberOfLines={5}
+              placeholder='Leave a comment (Optional)'
+              className='rounded-[10px] border border-[#ccc] p-[10px] w-full'
+            />
+            <View className='flex-row w-full gap-[10px]'>
+              <TouchableOpacity
+                className='flex-1 p-[10px] rounded-[10px] bg-primary'
+                disabled={isCommonLoaderVisible || rating === 0}
+                onPress={handleSubmitRating}
+              >
+                <Text className='text-white text-center'>{isCommonLoaderVisible ? "Submitting..." : "Submit Rating"}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                className='flex-1 p-[10px] rounded-[10px] bg-[#ccc]'
+                onPress={() => { setIsRatingModalVisible(false); router.push(`/Vendors/?vendor=${encodeURIComponent(localStorage.getItem('vendor'))}`) }}
+              >
+                <Text className='text-white text-center'>Maybe later</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      </View>
       </Modal>
     )
   }
@@ -535,7 +669,7 @@ const MyCart = () => {
             </View>
           </View>
         }
-        
+
         <View className='flex-row gap-[10px]'>
           {vendorFullData?.deliveryModes?.takeaway && (
             <TouchableOpacity
@@ -573,31 +707,122 @@ const MyCart = () => {
           <TouchableOpacity onPress={() => { if (!vendorFullData.vendorLocation?.latitude || !vendorFullData.vendorLocation?.longitude) { return }; Linking.openURL(`https://www.google.com/maps/place/${vendorFullData.vendorLocation.latitude}+${vendorFullData.vendorLocation.longitude}/`) }} ><Text className='text-center text-primary text-[12px]' ><Text className='font-bold text-primaryRed text-[14px]' >Pickup address:</Text> {vendorFullData.vendorBusinessPlotNumberOrShopNumber}, {vendorFullData.vendorBusinessComplexNameOrBuildingName}, {vendorFullData.vendorBusinessLandmark}, {vendorFullData.vendorBusinessRoadNameOrStreetName}, {vendorFullData.vendorBusinessVillageNameOrTownName}, {vendorFullData.vendorBusinessCity}, {vendorFullData.vendorBusinessState} - {vendorFullData.vendorBusinessPincode}</Text></TouchableOpacity>
         )}
 
-        {selectedDeliveryMode === 'homeDelivery' && isInServiceArea && Number(vendorFullData.freeDeliveryAboveAmount) - cartTotal > 0 && (<Text className='text-center text-[11px]' >Delivery Charge: <Text className='text-primaryRed font-bold' >₹{vendorFullData.deliveryCharge}</Text>. You're just <Text className='text-primaryGreen font-bold' >₹{Number(vendorFullData.freeDeliveryAboveAmount) - cartTotal}</Text> away from <Text className='text-primaryGreen font-bold' >Free Delivery</Text>.</Text>)}
+        {selectedDeliveryMode === 'homeDelivery' && isInServiceArea && Number(vendorFullData.freeDeliveryAboveAmount) - (cartTotal - totalDiscount) > 0 && (<Text className='text-center text-[11px]' >Delivery Charge: <Text className='text-primaryRed font-bold' >₹{vendorFullData.deliveryCharge}</Text>. You're just <Text className='text-primaryGreen font-bold' >₹{(Number(vendorFullData.freeDeliveryAboveAmount) - Number((cartTotal - totalDiscount))).toFixed(2)}</Text> away from <Text className='text-primaryGreen font-bold' >Free Delivery</Text>.</Text>)}
         {selectedDeliveryMode === 'homeDelivery' && isInServiceArea && Number(vendorFullData.freeDeliveryAboveAmount || 0) === 0 && (<Text className='text-center text-[11px]' >Delivery Charge: <Text className='text-primaryRed font-bold' >₹{vendorFullData.deliveryCharge}</Text></Text>)}
-        {selectedDeliveryMode === 'homeDelivery' && isInServiceArea && Number(vendorFullData.freeDeliveryAboveAmount || 0) !== 0 && Number(vendorFullData.freeDeliveryAboveAmount) - cartTotal <= 0 && (<Text className='text-primaryGreen font-bold text-center' >Free Delivery!</Text>)}
+        {selectedDeliveryMode === 'homeDelivery' && isInServiceArea && Number(vendorFullData.freeDeliveryAboveAmount || 0) !== 0 && Number(vendorFullData.freeDeliveryAboveAmount) - (cartTotal - totalDiscount) <= 0 && (<Text className='text-primaryGreen font-bold text-center' >Free Delivery!</Text>)}
+
+        {/* {selectedDeliveryMode === 'homeDelivery' && isInServiceArea && Number(vendorFullData.freeDeliveryAboveAmount) - finalAmount > 0 && (<Text className='text-center text-[11px]' >Delivery Charge: <Text className='text-primaryRed font-bold' >₹{vendorFullData.deliveryCharge}</Text>. You're just <Text className='text-primaryGreen font-bold' >₹{Number(vendorFullData.freeDeliveryAboveAmount) - finalAmount}</Text> away from <Text className='text-primaryGreen font-bold' >Free Delivery</Text>.</Text>)} */}
+        {/* {selectedDeliveryMode === 'homeDelivery' && isInServiceArea && Number(vendorFullData.freeDeliveryAboveAmount || 0) === 0 && (<Text className='text-center text-[11px]' >Delivery Charge: <Text className='text-primaryRed font-bold' >₹{vendorFullData.deliveryCharge}</Text></Text>)} */}
+        {/* {selectedDeliveryMode === 'homeDelivery' && isInServiceArea && Number(vendorFullData.freeDeliveryAboveAmount || 0) !== 0 && Number(vendorFullData.freeDeliveryAboveAmount) - finalAmount <= 0 && (<Text className='text-primaryGreen font-bold text-center' >Free Delivery!</Text>)} */}
+
       </View>
 
-      <FlashList
-        data={filteredItemsList}
-        renderItem={({ item }) => {
-          const cartItemIds = Object.keys(cartItems);
-          if (!cartItemIds.includes(item.id)) return null
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 5, gap: 3 }}
+      >
+        <FlashList
+          data={filteredItemsList}
+          renderItem={({ item }) => {
+            const cartItemIds = Object.keys(cartItems);
+            if (!cartItemIds.includes(item.id)) return null
+            return (
+              <ItemCard
+                item={item}
+                cartItem={cartItems[item.id] || null}
+                onAddToCart={handleAddToCartWithUpdate}
+                onIncrement={handleIncrementWithUpdate}
+                onDecrement={handleDecrementWithUpdate}
+                isStockVisible={false}
+              />
+            )
+          }}
+          keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
+        />
 
-          return (
-            <ItemCard
-              item={item}
-              cartItem={cartItems[item.id] || null}
-              onAddToCart={handleAddToCartWithUpdate}
-              onIncrement={handleIncrementWithUpdate}
-              onDecrement={handleDecrementWithUpdate}
-              isStockVisible={false}
-            />
-          )
-        }}
-        keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
-      />
-      <TouchableOpacity onPress={confirmOrder} className='p-[10px] m-[10px] bg-primary rounded-[10px]' ><Text className='text-white text-[18px] text-center' >Confirm Order</Text></TouchableOpacity>
+        {vendorOffers && vendorOffers.length !== 0 && <View className='w-full px-[10px] py-[5px] rounded-[5px] bg-primaryGreen border' >
+          <TouchableOpacity onPress={() => setIsOffersSectionOpen(!isOffersSectionOpen)} className='w-full items-center justify-between flex-row' >
+            <Text className='font-bold text-[16px] text-white' >OFFERS</Text>
+            <Image style={{ height: 25, width: 25 }} className='bg-white rounded-full' source={isOffersSectionOpen ? require('../../assets/images/arrowDownImage.png') : require('../../assets/images/arrowRightImage.png')} />
+          </TouchableOpacity>
+          {isOffersSectionOpen && <FlatList
+            data={vendorOffers}
+            renderItem={({ item }) => {
+              const isApplicable = applicableOffers.some(offer => offer.id === item.id);
+              const isSelected = selectedOffers.includes(item.id);
+
+              return (
+                <TouchableOpacity
+                  onPress={() => isApplicable && toggleOfferSelection(item.id)}
+                  className={`p-[10px] mt-[5px] rounded-[10px] gap-[5px] ${isApplicable ? 'bg-white' : 'bg-gray-100'} ${isSelected ? 'border-2 border-primaryGreen' : 'border border-gray-300'}`}
+                  disabled={!isApplicable}
+                >
+                  <View className='flex-row justify-between items-center'>
+                    <Text className='font-bold text-primary text-[16px]' >{item.title}</Text>
+                    {isApplicable && <Text className={`${isSelected ? 'text-primaryGreen font-bold' : 'text-[#ccc] border border-[#ccc] rounded-[5px] px-[10px] py-[2px]'}`}>{isSelected ? '✓ Applied' : 'Apply'}</Text>}
+                    {!isApplicable && <Text className='text-primaryRed text-[12px]'>Not applicable</Text>}
+                  </View>
+
+                  <Text className='text-[20px] font-bold text-primaryGreen' >{item.valueType === '₹' ? `₹${item.value}` : `${item.value}%`} OFF</Text>
+                  <Text className='text-[12px]' >{item.description}</Text>
+                  {item.minimumOrderAmount ? <Text className='' >Min. Order value: ₹{item.minimumOrderAmount}</Text> : ''}
+                  <View className='border-b-[1px] border-[#ccc]' />
+                  {item.applicableOn === 'All Items' && <Text>Applicable on: All items</Text>}
+                  {item.applicableOn !== 'All Items' && <Text className='font-[15px] font-bold' >Applicable on: </Text>}
+                  {item.applicableOn !== 'All Items' &&
+                    <FlatList
+                      data={item.applicableItems}
+                      renderItem={({ item }) => {
+                        return (
+                          <Text>{item}</Text>
+                        )
+                      }}
+                    />
+                  }
+                </TouchableOpacity>
+              )
+            }}
+          />}
+        </View>}
+
+        {/* Offer Summary */}
+        {/* {applicableOffers.length > 0 && ( */}
+        <View className='p-[10px] bg-green-50 rounded-[10px] border border-green-200'>
+          {/* {selectedOffers.length > 0 &&
+            <Text className='font-bold text-primaryGreen text-center mb-[5px]'>
+              Applied Offers {selectedOffers.length > 0 ? `(${selectedOffers.length} selected)` : '(Auto-applied best offer)'}
+            </Text>
+          } */}
+          <View className={`border-green-200 `}>
+            <View className='flex-row justify-between items-center'>
+              <Text className='text-[12px]'>Sub Total</Text>
+              <Text className='text-[12px]'>₹{cartTotal.toFixed(2)}</Text>
+            </View>
+            <View className='flex-row justify-between items-center mt-[5px]'>
+              <Text className='text-[12px] text-primaryGreen'>Total Discount</Text>
+              <Text className='text-[12px] font-bold text-primaryGreen'>-₹{totalDiscount.toFixed(2)}</Text>
+            </View>
+            {Number((cartTotal - totalDiscount)) + Number(vendorFullData?.deliveryCharge) === finalAmount && <View className='flex-row justify-between items-center mt-[5px]'>
+              <Text className='text-[12px] text-primaryRed'>Delivery Charge</Text>
+              <Text className='text-[13px] text-primaryRed'>+₹{Number(vendorFullData?.deliveryCharge)}</Text>
+            </View>}
+            <View className='border-b-[1px] border-[#ccc] mt-[5px]' />
+            <View className='flex-row justify-between items-center mt-[5px]'>
+              <Text className='text-[14px] font-bold text-primary'>Final Amount</Text>
+              <Text className='text-[14px] font-bold text-primary'>₹{finalAmount.toFixed(2)}</Text>
+            </View>
+          </View>
+        </View>
+        {/* )} */}
+
+        <TouchableOpacity onPress={confirmOrder} className='p-[10px] my-[10px] bg-primary rounded-[5px]' >
+          <Text className='text-white text-[18px] text-center'>Confirm Order</Text>
+          <Text className='text-white text-[12px] text-center'>
+            Total: ₹{finalAmount.toFixed(2)} {totalDiscount > 0 && `(Saved ₹${totalDiscount.toFixed(2)})`}
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+
     </View>
   )
 }

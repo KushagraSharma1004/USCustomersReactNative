@@ -4,7 +4,7 @@ import { Shadow } from 'react-native-shadow-2';
 
 const ItemCard = ({ item, cartItem, onAddToCart, onIncrement, onDecrement, isStockVisible = true }) => {
   const [isItemImageModalVisible, setIsItemImageModalVisible] = useState(false)
-  const [selectedImage, setSelectedImage] = useState(item?.images?.[0] || null)
+  const [selectedImage, setSelectedImage] = useState(item?.images ? item?.images?.[0] : null)
   const quantity = cartItem?.quantity || 0;
 
   const mrp = item?.prices?.[0]?.mrp || 0;
@@ -41,7 +41,7 @@ const ItemCard = ({ item, cartItem, onAddToCart, onIncrement, onDecrement, isSto
         >
           <Image
             source={
-              item?.images?.[0]
+              item?.images
                 ? { uri: item.images[0] }
                 : require('../../assets/images/placeholderImage.png')
             }
@@ -138,7 +138,7 @@ const ItemCard = ({ item, cartItem, onAddToCart, onIncrement, onDecrement, isSto
 
             {/* Thumbnails Row */}
             <View className="w-full flex-row justify-between">
-              {Array.from({ length: item?.images.length }).map((_, idx) => (
+              {Array.from({ length: item?.images ? item?.images?.length : 0 }).map((_, idx) => (
                 <TouchableOpacity
                   key={idx}
                   className="w-[22.5%] "

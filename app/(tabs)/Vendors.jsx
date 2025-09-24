@@ -16,7 +16,7 @@ import MyVendorsListModal from '../components/MyVendorsListModal';
 import BouncyCheckbox from "react-native-bouncy-checkbox";
 
 const Vendors = () => {
-  const { customerMobileNumber, fetchMyVendors, setCustomerMobileNumber } = useAuth()
+  const { customerMobileNumber, fetchMyVendors, setCustomerMobileNumber, fetchVendorOffers } = useAuth()
   const router = useRouter()
   const params = useLocalSearchParams()
   const screenWidth = Dimensions.get('window').width;
@@ -59,6 +59,8 @@ const Vendors = () => {
         return
       }
       const vendorData = vendorDocSnap.data()
+
+      fetchVendorOffers(vendorMobileNumber)
 
       setVendorFullData(vendorData)
       fetchHasCustomerReadVendorTermsAndConditions(vendorData)

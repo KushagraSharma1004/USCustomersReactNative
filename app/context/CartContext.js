@@ -113,7 +113,7 @@ export const CartProvider = ({ children }) => {
   }, [customerMobileNumber]);
   
   return (
-    <CartContext.Provider value={{ cartItems, cartCount, cartTotal, fetchCartItems }}>
+    <CartContext.Provider value={{ cartItems, cartCount, cartTotal, fetchCartItems, setCartTotal }}>
       {children}
     </CartContext.Provider>
   );
