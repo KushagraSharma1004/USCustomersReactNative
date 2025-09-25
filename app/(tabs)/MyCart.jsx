@@ -847,10 +847,10 @@ const MyCart = () => {
               <Text className='text-[12px]'>Sub Total</Text>
               <Text className='text-[12px]'>₹{cartTotal.toFixed(2)}</Text>
             </View>
-            <View className='flex-row justify-between items-center mt-[5px]'>
+            {selectedOffers.length !== 0 && <View className='flex-row justify-between items-center mt-[5px]'>
               <Text className='text-[12px] text-primaryGreen'>Total Discount</Text>
               <Text className='text-[12px] font-bold text-primaryGreen'>-₹{totalDiscount.toFixed(2)}</Text>
-            </View>
+            </View>}
             {Number((cartTotal - totalDiscount)) + Number(vendorFullData?.deliveryCharge) === finalAmount && <View className='flex-row justify-between items-center mt-[5px]'>
               <Text className='text-[12px] text-primaryRed'>Delivery Charge</Text>
               <Text className='text-[13px] text-primaryRed'>+₹{Number(vendorFullData?.deliveryCharge)}</Text>
