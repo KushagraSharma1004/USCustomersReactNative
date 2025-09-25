@@ -13,7 +13,7 @@ import { useGlobalSearchParams } from 'expo-router'
 
 const SubMenuModal = ({ isVisible, onClose }) => {
     const { vendor } = useGlobalSearchParams();
-    const vendorMobileNumber = decryptData(vendor);
+    const vendorMobileNumber = vendor ? decryptData(vendor) : null;
     const [vendorFullData, setVendorFullData] = useState(null)
     const segments = useSegments();
     const isVendorsScreenOpen = segments.includes('Vendors');

@@ -210,6 +210,34 @@ const MyCart = () => {
     fetchVendorAddress()
   }, [vendorMobileNumber])
 
+  // Delete cart items that are not in the vendor's current list
+  useEffect(() => {
+    const removeInvalidCartItems = async () => {
+      if (!allItemsList.length || !cartItems) return;
+
+      const vendorItemIds = allItemsList.map(item => item.id);
+      const cartItemIds = Object.keys(cartItems);
+
+      const invalidItemIds = cartItemIds.filter(cartId => !vendorItemIds.includes(cartId));
+
+      if (invalidItemIds.length === 0) return;
+
+      try {
+        const deletePromises = invalidItemIds.map(itemId => {
+          const docRef = doc(db, 'customers', customerMobileNumber, 'cart', vendorMobileNumber, 'items', itemId);
+          return deleteDoc(docRef);
+        });
+        await Promise.all(deletePromises);
+        await fetchCartItems(); // Refresh cart after deletion
+        console.log('Removed invalid cart items:', invalidItemIds);
+      } catch (error) {
+        console.error('Error removing invalid cart items:', error);
+      }
+    };
+
+    removeInvalidCartItems();
+  }, [allItemsList, cartItems]);
+
   const subscribeToVendorFullData = () => {
     if (!vendorMobileNumber || vendorMobileNumber.length !== 10) {
       return () => { }; // Return empty cleanup function if invalid vendor number

@@ -36,7 +36,7 @@ export const CartProvider = ({ children }) => {
       let totalAmount = 0; // Add this line
       
       cartSnap.forEach((doc) => {
-        items[doc.id] = doc.data();
+        items[doc.id] = {...doc.data(), id: doc.id};
         totalQty += doc.data().quantity || 0;
         totalAmount += (doc.data().price || 0) * (doc.data().quantity || 0); // Add this line
       });

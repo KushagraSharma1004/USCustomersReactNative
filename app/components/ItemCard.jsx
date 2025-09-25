@@ -2,7 +2,7 @@ import { View, Text, Image, TouchableOpacity, Modal, ScrollView } from 'react-na
 import React, { useState } from 'react'
 import { Shadow } from 'react-native-shadow-2';
 
-const ItemCard = ({ item, cartItem, onAddToCart, onIncrement, onDecrement, isStockVisible = true }) => {
+const ItemCard = ({ item, cartItem, onAddToCart, onIncrement, onDecrement, isStockVisible = true, offerBadge }) => {
   const [isItemImageModalVisible, setIsItemImageModalVisible] = useState(false)
   const [selectedImage, setSelectedImage] = useState(item?.images ? item?.images?.[0] : null)
   const quantity = cartItem?.quantity || 0;
@@ -28,6 +28,12 @@ const ItemCard = ({ item, cartItem, onAddToCart, onIncrement, onDecrement, isSto
           <Text className="text-white text-[12px] font-bold">
             {discountPercentage}% OFF
           </Text>
+        </View>
+      )}
+
+      {offerBadge && (
+        <View className='absolute top-[5px] right-[5px] bg-primaryGreen px-[5px] py-[2px] rounded-[5px]'>
+          <Text className='text-white text-[10px]'>Offer</Text>
         </View>
       )}
 
