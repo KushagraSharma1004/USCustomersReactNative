@@ -101,12 +101,12 @@ const MyCart = () => {
         discount = (cartTotal * offer.value) / 100;
       }
     } else {
-      // Apply to specific items only
-      const applicableItems = offer.applicableItems || [];
+      // Calculate discount
+      const applicableItems = offer.applicableItems || []; // array of objects with id
       let applicableItemsTotal = 0;
 
       Object.values(cartItems).forEach(cartItem => {
-        if (applicableItems.includes(cartItem.name)) {
+        if (applicableItems.some(appItem => appItem.id === cartItem.id)) {
           applicableItemsTotal += cartItem.price * cartItem.quantity;
         }
       });
@@ -205,11 +205,6 @@ const MyCart = () => {
     }
   }
 
-  useEffect(() => {
-    fetchVendorItemList()
-    fetchVendorAddress()
-  }, [vendorMobileNumber])
-
   // Delete cart items that are not in the vendor's current list
   useEffect(() => {
     const removeInvalidCartItems = async () => {
@@ -237,6 +232,11 @@ const MyCart = () => {
 
     removeInvalidCartItems();
   }, [allItemsList, cartItems]);
+
+  useEffect(() => {
+    fetchVendorItemList()
+    fetchVendorAddress()
+  }, [vendorMobileNumber])
 
   const subscribeToVendorFullData = () => {
     if (!vendorMobileNumber || vendorMobileNumber.length !== 10) {
@@ -443,6 +443,7 @@ const MyCart = () => {
           alert(`Item "${cartItem.name}" is no longer available.`);
           return;
         }
+
         const itemData = itemDocSnap.data();
         if (cartItem.quantity > (itemData.stock || 0)) {
           alert(`Not enough stock for "${cartItem.name}". Available: ${itemData.stock}, Ordered: ${cartItem.quantity}`);
@@ -762,6 +763,11 @@ const MyCart = () => {
                 onIncrement={handleIncrementWithUpdate}
                 onDecrement={handleDecrementWithUpdate}
                 isStockVisible={false}
+                offerBadge={selectedOffers.some(offerId => {
+                  const offer = applicableOffers.find(o => o.id === offerId);
+                  return offer?.applicableItems?.some(appItem => appItem.id === item.id);
+                })}
+
               />
             )
           }}
@@ -798,14 +804,29 @@ const MyCart = () => {
                   {item.applicableOn === 'All Items' && <Text>Applicable on: All items</Text>}
                   {item.applicableOn !== 'All Items' && <Text className='font-[15px] font-bold' >Applicable on: </Text>}
                   {item.applicableOn !== 'All Items' &&
+                    // {item.applicableOn !== 'All Items' &&
                     <FlatList
                       data={item.applicableItems}
-                      renderItem={({ item }) => {
-                        return (
-                          <Text>{item}</Text>
-                        )
-                      }}
+                      keyExtractor={(appItem, index) => appItem.id || index.toString()}
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      renderItem={({ item: appItem }) => (
+                        <View className="flex-row items-center mr-[5px] border border-[#ccc] p-[5px] rounded-[5px]">
+                          {appItem.image && (
+                            <Image
+                              source={{ uri: appItem.image }}
+                              style={{ width: 32, height: 32 }}
+                              className="rounded mr-1"
+                            />
+                          )}
+                          <View>
+                            <Text className="text-[10px] text-gray-700 text-center">{appItem.name}</Text>
+                            <Text className="text-[10px] text-gray-700 text-center">₹{appItem.sellingPrice}</Text>
+                          </View>
+                        </View>
+                      )}
                     />
+                    // }
                   }
                 </TouchableOpacity>
               )
