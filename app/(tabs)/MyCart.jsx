@@ -780,7 +780,7 @@ const MyCart = () => {
             <Image style={{ height: 25, width: 25 }} className='bg-white rounded-full' source={isOffersSectionOpen ? require('../../assets/images/arrowDownImage.png') : require('../../assets/images/arrowRightImage.png')} />
           </TouchableOpacity>
           {isOffersSectionOpen && <FlatList
-            data={vendorOffers}
+            data={vendorOffers.filter((offer) => offer.active)}
             renderItem={({ item }) => {
               const isApplicable = applicableOffers.some(offer => offer.id === item.id);
               const isSelected = selectedOffers.includes(item.id);
