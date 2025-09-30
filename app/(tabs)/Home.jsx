@@ -146,7 +146,7 @@ const Home = () => {
   const handleAddVendorToMyVendorList = async () => {
     try {
       const customerInVendorRef = doc(db, 'customers', customerMobileNumber, 'vendors', addVendorInMyVendorsListMobileNumber)
-      const vendorInCustomerRef = doc(db, 'users', addVendorInMyVendorsListMobileNumber, 'customers', addVendorInMyVendorsListMobileNumber)
+      const vendorInCustomerRef = doc(db, 'users', addVendorInMyVendorsListMobileNumber, 'customers', customerMobileNumber)
       await setDoc(customerInVendorRef, {
         addedAt: serverTimestamp(),
         vendorMobileNumber: addVendorInMyVendorsListMobileNumber

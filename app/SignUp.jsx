@@ -17,7 +17,9 @@ import { decryptData, encryptData } from './context/hashing.js'
 const SignUp = () => {
     const router = useRouter()
     const { setCustomerMobileNumber, setCustomerPassword, setCustomerFullData } = useAuth()
+    const [vendorMobileNumberToRegisterUnder, setVendorMobileNumberToRegisterUnder] = useState('')
     const params = useLocalSearchParams();
+    const customerMobileNumberToRegister = params.registerCustomer || ''
     const customerMobileNumberFromURL = params.customerMobileNumber || ''
     const [customerMobileNumber, setCustomerMobileNumberThisScreen] = useState('')
     const [isCommonLoaderVisible, setIsCommonLoaderVisible] = useState(false)
@@ -49,6 +51,17 @@ const SignUp = () => {
     const [showImagePickerOptions, setShowImagePickerOptions] = useState(false);
     const [customerImage, setCustomerImage] = useState(null)
     const registerInVendor = decryptData(localStorage.getItem('registerInVendor')) || ''
+    const vendorMobileNumberToRegisterUnderFormURL = params.vendorMobileNumberToRegisterUnderFormURL || ''
+
+    useEffect(() => {
+        if (customerMobileNumberToRegister && decryptData(customerMobileNumberToRegister).length === 10) {
+            setCustomerMobileNumberThisScreen(decryptData(customerMobileNumberToRegister))
+        }
+        if (vendorMobileNumberToRegisterUnderFormURL && decryptData(vendorMobileNumberToRegisterUnderFormURL).length === 10) {
+            setVendorMobileNumberToRegisterUnder(decryptData(vendorMobileNumberToRegisterUnderFormURL))
+        }
+    }, [customerMobileNumberToRegister, vendorMobileNumberToRegisterUnderFormURL])
+
 
     const uploadCustomerImage = async () => {
         if (!customerImage) return null;
@@ -555,6 +568,27 @@ const SignUp = () => {
             const customerNewRef = doc(db, 'customers', customerMobileNumber)
             const customerNewDocSnap = await getDoc(customerNewRef)
             const customerData = customerNewDocSnap.data()
+
+            if (vendorMobileNumberToRegisterUnder.length === 10) {
+                const handleAddVendorToMyVendorList = async () => {
+                    try {
+                        const customerInVendorRef = doc(db, 'customers', customerMobileNumber, 'vendors', vendorMobileNumberToRegisterUnder)
+                        const vendorInCustomerRef = doc(db, 'users', vendorMobileNumberToRegisterUnder, 'customers', customerMobileNumber)
+                        await setDoc(customerInVendorRef, {
+                            addedAt: serverTimestamp(),
+                            vendorMobileNumber: vendorMobileNumberToRegisterUnder
+                        })
+                        await setDoc(vendorInCustomerRef, {
+                            addedAt: serverTimestamp(),
+                            customerMobileNumber
+                        })
+                    } catch (error) {
+                        console.log('Error adding vendor to vendor list: ', error)
+                        alert('Could not add vendor to vendor list. Please try again.')
+                    }
+                }
+                handleAddVendorToMyVendorList()
+            }
 
             await setCustomerFullData(customerData)
 
