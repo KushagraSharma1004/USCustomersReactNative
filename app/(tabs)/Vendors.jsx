@@ -49,10 +49,25 @@ const Vendors = () => {
   const [rating, setRating] = useState(0)
   const [ratingComment, setRatingComment] = useState('')
 
+  // useEffect(() => {
+  //   if(fromCustomisedQR) {
+  //     setCustomerMobileNumber('')
+  //     localStorage.removeItem('customerMobileNumber')
+  //   }
+  // }, [fromCustomisedQR])
+
   useEffect(() => {
-    if(fromCustomisedQR) {
-      setCustomerMobileNumber('')
-      localStorage.removeItem('customerMobileNumber')
+    if (fromCustomisedQR) {
+      localStorage.removeItem('customerMobileNumber');
+      localStorage.setItem('customerMobileNumber', '');
+      localStorage.setItem('customerMobileNumber', null);
+      localStorage.setItem('customerMobileNumber', 'undefined');
+      setCustomerMobileNumber('');
+      setTimeout(() => {
+        const stored = localStorage.getItem('customerMobileNumber');
+        console.log('✅ Final localStorage value:', stored);
+        console.log('✅ Type of value:', typeof stored);
+      }, 200);
     }
   }, [fromCustomisedQR])
 
@@ -608,6 +623,7 @@ const Vendors = () => {
                 value={orderComment}
                 onChangeText={setOrderComment}
                 multiline
+                maxLength={1000}
                 numberOfLines={5}
                 className='rounded-[10px] border border-[#ccc] p-[10px] w-full'
                 placeholder='Enter any special instructions, cooking preference, or notes for the vendor...'

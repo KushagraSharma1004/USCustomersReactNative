@@ -662,6 +662,7 @@ const MyCart = () => {
                 value={orderComment}
                 onChangeText={setOrderComment}
                 multiline
+                maxLength={1000}
                 numberOfLines={5}
                 className='rounded-[10px] border border-[#ccc] p-[10px] w-full'
                 placeholder='Enter any special instructions, cooking preference, or notes for the vendor...'
