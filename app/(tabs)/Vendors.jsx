@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import Header from '../components/Header';
 import { db } from '@/firebase'
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc, increment, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc, increment, deleteDoc, onSnapshot, serverTimestamp, addDoc } from 'firebase/firestore';
 import ItemCard from '../components/ItemCard';
 import MultipleItemsCard from '../components/MutipleItemsCard';
 import { FlashList } from "@shopify/flash-list";
@@ -38,6 +38,9 @@ const Vendors = () => {
   const [isVendorTermsAndConditionsModalVisible, setIsVendorTermsAndConditionsModalVisible] = useState(false)
   const [isOfflineModalVisible, setIsOfflineModalVisible] = useState(vendorFullData?.isOffline ?? false);
   const fromQR = params.fromQR === 'true' ? true : false
+  const fromCustomisedQR = params.fromCustomisedQR === 'true' ? true : false
+  const customisedQRId = params.QR || ''
+  const [cartItemsForCustomisedQR, setCartItemsForCustomisedQR] = useState({})
 
   useEffect(() => {
     localStorage.setItem('vendor', params.vendor);
@@ -165,13 +168,44 @@ const Vendors = () => {
   }, [vendorMobileNumber]);
 
   const handleAddToCartWithUpdate = async (item) => {
-    if(!customerMobileNumber || customerMobileNumber.length !== 10 || fromQR && decryptData(localStorage.getItem('customerMobileNumber')).length !== 10){
-      alert('Please Login/SignUp to continue.')
-      localStorage.setItem('registerInVendor', encryptData(vendorMobileNumber))
-      router.replace(`/Login/`)
+    if (!fromCustomisedQR) {
+      if (!customerMobileNumber || customerMobileNumber.length !== 10 || fromQR && decryptData(localStorage.getItem('customerMobileNumber')).length !== 10) {
+        alert('Please Login/SignUp to continue.')
+        localStorage.setItem('registerInVendor', encryptData(vendorMobileNumber))
+        router.replace(`/Login`)
+        return;
+      } else {
+        setCustomerMobileNumber(decryptData(localStorage.getItem('customerMobileNumber')))
+      }
+    }
+    const isGuest = !customerMobileNumber || customerMobileNumber.length !== 10 || (fromCustomisedQR && !customerMobileNumber);
+    if (isGuest) {
+      // Get existing cart from localStorage
+      let localCart = JSON.parse(localStorage.getItem('cartItems') || '{}');
+
+      // Use vendorMobileNumber as key
+      if (!localCart[vendorMobileNumber]) localCart[vendorMobileNumber] = {};
+
+      if (localCart[vendorMobileNumber][item.id]) {
+        localCart[vendorMobileNumber][item.id].quantity += 1;
+        localCart[vendorMobileNumber][item.id].updatedAt = new Date();
+      } else {
+        localCart[vendorMobileNumber][item.id] = {
+          name: item.name,
+          price: item.prices[0].sellingPrice,
+          prices: item.prices,
+          measurement: item.prices[0].measurement,
+          quantity: 1,
+          stock: item.stock,
+          image: item?.images?.[0] || null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+      }
+
+      localStorage.setItem('cartItems', JSON.stringify(localCart));
+      setCartItemsForCustomisedQR(localCart); // Update state
       return;
-    } else {
-      setCustomerMobileNumber(decryptData(localStorage.getItem('customerMobileNumber')))
     }
     try {
       const itemRef = doc(
@@ -214,6 +248,17 @@ const Vendors = () => {
   };
 
   const handleIncrementWithUpdate = async (itemId) => {
+    const isGuest = !customerMobileNumber || customerMobileNumber.length !== 10 || (fromCustomisedQR && !customerMobileNumber);
+    if (isGuest) {
+      let localCart = JSON.parse(localStorage.getItem('cartItems') || '{}');
+      if (localCart[vendorMobileNumber] && localCart[vendorMobileNumber][itemId]) {
+        localCart[vendorMobileNumber][itemId].quantity += 1;
+        localCart[vendorMobileNumber][itemId].updatedAt = new Date();
+        localStorage.setItem('cartItems', JSON.stringify(localCart));
+        setCartItemsForCustomisedQR(localCart);
+      }
+      return;
+    }
     try {
       const itemRef = doc(db, "customers", customerMobileNumber, "cart", vendorMobileNumber, "items", itemId);
       await updateDoc(itemRef, {
@@ -229,6 +274,21 @@ const Vendors = () => {
   };
 
   const handleDecrementWithUpdate = async (itemId, currentQty) => {
+    const isGuest = !customerMobileNumber || customerMobileNumber.length !== 10 || (fromCustomisedQR && !customerMobileNumber);
+    if (isGuest) {
+      let localCart = JSON.parse(localStorage.getItem('cartItems') || '{}');
+      if (localCart[vendorMobileNumber] && localCart[vendorMobileNumber][itemId]) {
+        if (currentQty <= 1) {
+          delete localCart[vendorMobileNumber][itemId];
+        } else {
+          localCart[vendorMobileNumber][itemId].quantity -= 1;
+          localCart[vendorMobileNumber][itemId].updatedAt = new Date();
+        }
+        localStorage.setItem('cartItems', JSON.stringify(localCart));
+        setCartItemsForCustomisedQR(localCart);
+      }
+      return;
+    }
     try {
       const itemRef = doc(db, "customers", customerMobileNumber, "cart", vendorMobileNumber, "items", itemId);
 
@@ -320,6 +380,140 @@ const Vendors = () => {
     }
   })
 
+  const confirmOrder = async () => {
+    if (!vendorMobileNumber) {
+      alert('Missing vendor information.');
+      return;
+    }
+
+    try {
+      setIsCommonLoaderVisible(true);
+
+      // Determine cart source
+      let cartData = {};
+
+      cartData = cartItemsForCustomisedQR[vendorMobileNumber] || {};
+      if (Object.keys(cartData).length === 0) {
+        alert('Your cart is empty. Please add items before confirming your order.');
+        return;
+      }
+
+      // Prepare items and check stock
+      const itemsToOrder = [];
+      for (const [itemId, cartItem] of Object.entries(cartData)) {
+        if (cartItem.quantity <= 0) continue;
+
+        const itemRef = doc(db, 'users', vendorMobileNumber, 'list', itemId);
+        const itemDocSnap = await getDoc(itemRef);
+
+        if (!itemDocSnap.exists()) {
+          alert(`Item "${cartItem.name}" is no longer available.`);
+          return;
+        }
+
+        const itemData = itemDocSnap.data();
+        if (cartItem.quantity > (itemData.stock || 0)) {
+          alert(`Not enough stock for "${cartItem.name}". Available: ${itemData.stock}, Ordered: ${cartItem.quantity}`);
+          return;
+        }
+
+        itemsToOrder.push({
+          id: itemId,
+          name: cartItem.name,
+          quantity: cartItem.quantity,
+          price: cartItem.prices,
+          imageURL: itemData.images?.[0] || '',
+          originalStock: itemData.stock || 0,
+        });
+      }
+
+      if (itemsToOrder.length === 0) {
+        alert('No valid items to order.');
+        return;
+      }
+
+      // Create order details
+      const orderDetails = {
+        businessName: vendorFullData?.businessName || '',
+        items: itemsToOrder.map(({ id, name, quantity, price, imageURL }) => ({
+          id, name, quantity, price, imageURL
+        })),
+        orderStatus: 'Pending',
+        orderTime: new Date(),
+        totalAmount: Object.values(cartItemsForCustomisedQR[vendorMobileNumber]).reduce((total, item) => total + (item.price * item.quantity), 0) || 0,
+        vendorMobileNumber: vendorMobileNumber,
+        vendorName: vendorFullData?.vendorName || '',
+        QRCode: decryptData(customisedQRId) || null
+      };
+
+      if (orderDetails.items.length === 0 || orderDetails.totalAmount <= 0) {
+        alert('Order details are incomplete or total amount is zero.');
+        return;
+      }
+
+      // if (fromCustomisedQR) {
+      //   // Save order to localStorage for guest
+      //   let localOrders = JSON.parse(localStorage.getItem('myOrders') || '[]');
+      //   localOrders.push(orderDetails);
+      //   localStorage.setItem('myOrders', JSON.stringify(localOrders));
+
+      //   // Add vendor to customer's vendors list in localStorage
+      //   let localVendors = JSON.parse(localStorage.getItem('vendors') || '{}');
+      //   localVendors[vendorMobileNumber] = {
+      //     addedAt: new Date().toISOString(),
+      //     vendorMobileNumber
+      //   };
+      //   localStorage.setItem('vendors', JSON.stringify(localVendors));
+
+      //   // Clear cart for this vendor
+      //   let localCart = JSON.parse(localStorage.getItem('cartItems') || '{}');
+      //   delete localCart[vendorMobileNumber];
+      //   localStorage.setItem('cartItems', JSON.stringify(localCart));
+
+      //   setCartItemsForCustomisedQR(localCart);
+      //   alert('Order confirmed successfully!');
+      //   setOrderComment('');
+      //   setIsOrderCommentModalShown(false);
+      //   setSelectedDeliveryMode('selectADeliveryMode');
+      //   setDeliveryModeError('');
+      //   return;
+      // }
+
+      // --- Keep normal order flow for logged-in users ---
+
+      const customerOrdersRef = collection(db, 'customers', '1000000001', 'myOrders');
+      const orderDocRef = await addDoc(customerOrdersRef, orderDetails);
+
+      const customerVendorDocRef = doc(db, 'customers', '1000000001', 'vendors', vendorMobileNumber);
+      await setDoc(customerVendorDocRef, {
+        vendorMobileNumber,
+        addedAt: serverTimestamp()
+      });
+
+      const vendorOrdersRef = doc(db, 'users', vendorMobileNumber, 'myOrders', orderDocRef.id);
+      await setDoc(vendorOrdersRef, { ...orderDetails, orderId: orderDocRef.id });
+
+      // Update stock
+      for (const item of itemsToOrder) {
+        const itemRef = doc(db, 'users', vendorMobileNumber, 'list', item.id);
+        await updateDoc(itemRef, { stock: item.originalStock - item.quantity });
+      }
+
+      let localCart = JSON.parse(localStorage.getItem('cartItems') || '{}');
+      delete localCart[vendorMobileNumber];
+      localStorage.setItem('cartItems', JSON.stringify(localCart));
+      setCartItemsForCustomisedQR({})
+
+      alert('Order confirmed successfully!');
+
+    } catch (error) {
+      console.error('Error confirming order:', error);
+      alert('Failed to confirm order. Please try again.');
+    } finally {
+      setIsCommonLoaderVisible(false);
+    }
+  };
+
   return (
     <View className='flex-1 gap-[1px]'>
       <Modal animationType='slide' transparent={true} visible={isOfflineModalVisible} >
@@ -361,7 +555,7 @@ const Vendors = () => {
                 disableText
                 fillColor="green"
                 size={25}
-                iconComponent={<Image style={{height:15, width:15}} source={require('../../assets/images/checkImage.png')} />}
+                iconComponent={<Image style={{ height: 15, width: 15 }} source={require('../../assets/images/checkImage.png')} />}
                 useBuiltInState={false}
                 iconStyle={{ borderRadius: 5 }}        // outer icon container radius
                 innerIconStyle={{ borderRadius: 5 }}   // inner icon radius (important)
@@ -381,7 +575,7 @@ const Vendors = () => {
       </Modal>
 
       {decryptData(localStorage.getItem('customerMobileNumber')).length === 10 && <Header setIsMyVendorsListModalVisible={setIsMyVendorsListModalVisible} />}
-      
+
       <View className='w-[98%] self-center bg-white rounded-[10px] gap-[5px] border border-[#ccc]' >
         <View className='px-[10px] py-[5px] w-full flex-row items-center justify-between ' >
           <Text className='text-center text-[16px] text-primaryGreen font-bold flex-1 border-r'>{vendorFullData?.businessName}</Text>
@@ -442,6 +636,8 @@ const Vendors = () => {
               (i) => i.name.toLowerCase() === item.name.toLowerCase()
             );
 
+            const cartSource = fromCustomisedQR ? cartItemsForCustomisedQR[vendorMobileNumber] || {} : cartItems;
+
             if (isItemsMultiple && numberedItems[firstIndexOfGroup].id === item.id) {
               return (
                 <View className="bg-[white] rounded-[10px] mb-[2px] gap-[3px]">
@@ -461,7 +657,7 @@ const Vendors = () => {
                           <MultipleItemsCard
                             item={groupedItem}
                             innerIndex={nameGroup.length - groupedItemIndex}
-                            cartItem={cartItems[groupedItem.id] || null} // Get cart item for this specific product
+                            cartItem={cartSource[groupedItem.id] || null} // Get cart item for this specific product
                             onAddToCart={handleAddToCartWithUpdate}
                             onIncrement={handleIncrementWithUpdate}
                             onDecrement={handleDecrementWithUpdate}
@@ -480,7 +676,7 @@ const Vendors = () => {
               return (
                 <ItemCard
                   item={item}
-                  cartItem={cartItems[item.id] || null}
+                  cartItem={cartSource[item.id] || null}
                   onAddToCart={handleAddToCartWithUpdate}
                   onIncrement={handleIncrementWithUpdate}
                   onDecrement={handleDecrementWithUpdate}
@@ -492,6 +688,7 @@ const Vendors = () => {
           }}
           keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
         />
+
       </ScrollView>
 
       {/* {!isSearchBarVisible && (
@@ -514,14 +711,8 @@ const Vendors = () => {
         </TouchableOpacity>
       )}
 
-      {isSearchBarVisible && <View className='w-[99%] justify-center items-center flex-row left-0 fixed bottom-[70px]' >
-        <TouchableOpacity
-          className="z-[10] left-[1px] p-[10px] items-center justify-center rounded-r-[10px] bg-wheat mr-[5px]"
-          onPress={() => setIsSearchBarVisible(true)}
-        >
-          <Image style={{ height: 30, width: 30 }} source={require('../../assets/images/myCartImage.png')} />
-          {/* <Text>3000000000000</Text> */}
-        </TouchableOpacity>
+      {isSearchBarVisible && <View className='max-w-[96%] justify-center items-center flex-row self-center fixed bottom-[5px]' >
+        {fromCustomisedQR && cartItemsForCustomisedQR[vendorMobileNumber] && Object.keys(cartItemsForCustomisedQR[vendorMobileNumber]).length > 0 && <TouchableOpacity className='w-fit bg-primaryGreen p-[10px] rounded-[10px] mr-[5px]' ><Text className='text-white text-center font-bold text-[14px]' >Confirm Order</Text></TouchableOpacity>}
         <TextInput
           className='flex-1 py-[12px] px-[15px] border-[#ccc] border rounded-l-full bg-white text-base text-gray-800 outline-none focus:outline-none focus:border-[#ccc] focus:bg-white'
           placeholder='🔍 Search by Name'
@@ -529,7 +720,13 @@ const Vendors = () => {
           onChangeText={setSearchQuery} // Update search query state
         />
         <TouchableOpacity onPress={() => { setIsSearchBarVisible(false); setSearchQuery('') }}><Image style={{ height: 50, width: 60 }} className='p-[10px] bg-primaryRed rounded-r-full' source={require('../../assets/images/crossImage.png')} /></TouchableOpacity>
-      </View>
+      </View>}
+
+      {!isSearchBarVisible && fromCustomisedQR && cartItemsForCustomisedQR[vendorMobileNumber] && Object.keys(cartItemsForCustomisedQR[vendorMobileNumber]).length > 0 &&
+        <TouchableOpacity onPress={confirmOrder} className='p-[10px] my-[5px] bg-primary rounded-[5px] w-[85%] left-[10px]' >
+          <Text className='text-white text-[18px] text-center items-center justify-center'>Confirm Order <Text className='h-[30px] w-[50px] rounded-full items-center justify-center bg-white text-black text-[13px] p-[2px]' >{Object.values(cartItemsForCustomisedQR[vendorMobileNumber]).reduce((total, item) => total + item.quantity, 0)}</Text></Text>
+          <Text className='text-white text-[12px] text-center'>Total: ₹{Object.values(cartItemsForCustomisedQR[vendorMobileNumber]).reduce((total, item) => total + (item.price * item.quantity), 0)}</Text>
+        </TouchableOpacity>
       }
 
       <MyVendorsListModal vendorMobileNumber={vendorMobileNumber} isMyVendorsListModalVisible={isMyVendorsListModalVisible} setIsMyVendorsListModalVisible={setIsMyVendorsListModalVisible} setIsRemoveVendorFromMyVendorsListConfirmationModalVisible={setIsRemoveVendorFromMyVendorsListConfirmationModalVisible} setVendorMobileNumberToRemoveFromMyVendorsList={setVendorMobileNumberToRemoveFromMyVendorsList} />
