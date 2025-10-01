@@ -14,6 +14,7 @@ import Loader from '../components/Loader'
 import ConfirmationModal from '../components/ConfirmationModal';
 import MyVendorsListModal from '../components/MyVendorsListModal';
 import BouncyCheckbox from "react-native-bouncy-checkbox";
+import { RatingStars } from '../components/RatingStars';
 
 const Vendors = () => {
   const { customerMobileNumber, fetchMyVendors, setCustomerMobileNumber, fetchVendorOffers } = useAuth()
@@ -30,7 +31,7 @@ const Vendors = () => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [filteredItemsList, setFilteredItemsList] = useState([]);
   const [allItemsList, setAllItemsList] = useState([]); // Add this near filteredItemsList state
-  const { cartItems, fetchCartItems, cartCount, cartTotal } = useCart();
+  const { cartItems, fetchCartItems } = useCart();
   const [isMyVendorsListModalVisible, setIsMyVendorsListModalVisible] = useState(false)
   const [isRemoveVendorFromMyVendorsListConfirmationModalVisible, setIsRemoveVendorFromMyVendorsListConfirmationModalVisible] = useState(false)
   const [vendorMobileNumberToRemoveFromMyVendorsList, setVendorMobileNumberToRemoveFromMyVendorsList] = useState(null)
@@ -41,6 +42,19 @@ const Vendors = () => {
   const fromCustomisedQR = params.fromCustomisedQR === 'true' ? true : false
   const customisedQRId = params.QR || ''
   const [cartItemsForCustomisedQR, setCartItemsForCustomisedQR] = useState({})
+  const [isOrderCommentModalShown, setIsOrderCommentModalShown] = useState(false)
+  const [isOrderCommentModalVisible, setIsOrderCommentModalVisible] = useState(false)
+  const [orderComment, setOrderComment] = useState('')
+  const [isRatingModalVisible, setIsRatingModalVisible] = useState(false)
+  const [rating, setRating] = useState(0)
+  const [ratingComment, setRatingComment] = useState('')
+
+  useEffect(() => {
+    if(fromCustomisedQR) {
+      setCustomerMobileNumber('')
+      localStorage.removeItem('customerMobileNumber')
+    }
+  }, [fromCustomisedQR])
 
   useEffect(() => {
     localStorage.setItem('vendor', params.vendor);
@@ -380,7 +394,28 @@ const Vendors = () => {
     }
   })
 
-  const confirmOrder = async () => {
+  const handleSubmitRating = async () => {
+    if (rating === 0) return; // Prevent empty ratings
+    setIsCommonLoaderVisible(true);
+    try {
+      await addDoc(collection(db, "ratings"), {
+        comment: ratingComment,
+        customerId: customerMobileNumber, // Set this from your auth context or props
+        rating: rating,
+        timestamp: serverTimestamp(),
+        vendorId: vendorFullData.vendorMobileNumber, // Use the vendor's mobile number here
+      });
+      // Optionally show a confirmation modal/snackbar here
+      setIsRatingModalVisible(false);
+      setRating(0);
+      setRatingComment('');
+    } catch (e) {
+      // Show error toast or alert
+    }
+    setIsCommonLoaderVisible(false);
+  }
+
+  const confirmOrder = async (isOrderCommentAdded = false) => {
     if (!vendorMobileNumber) {
       alert('Missing vendor information.');
       return;
@@ -443,7 +478,8 @@ const Vendors = () => {
         totalAmount: Object.values(cartItemsForCustomisedQR[vendorMobileNumber]).reduce((total, item) => total + (item.price * item.quantity), 0) || 0,
         vendorMobileNumber: vendorMobileNumber,
         vendorName: vendorFullData?.vendorName || '',
-        QRCode: decryptData(customisedQRId) || null
+        QRCode: decryptData(customisedQRId) || null,
+        customerComment: isOrderCommentAdded ? orderComment : '',
       };
 
       if (orderDetails.items.length === 0 || orderDetails.totalAmount <= 0) {
@@ -481,6 +517,12 @@ const Vendors = () => {
 
       // --- Keep normal order flow for logged-in users ---
 
+      if (isOrderCommentModalShown === false) {
+        setIsOrderCommentModalVisible(true)
+        setIsOrderCommentModalShown(true)
+        return
+      }
+
       const customerOrdersRef = collection(db, 'customers', '1000000001', 'myOrders');
       const orderDocRef = await addDoc(customerOrdersRef, orderDetails);
 
@@ -504,6 +546,9 @@ const Vendors = () => {
       localStorage.setItem('cartItems', JSON.stringify(localCart));
       setCartItemsForCustomisedQR({})
 
+      setOrderComment('')
+      setIsOrderCommentModalShown(false)
+      setIsRatingModalVisible(true)
       alert('Order confirmed successfully!');
 
     } catch (error) {
@@ -514,8 +559,68 @@ const Vendors = () => {
     }
   };
 
+  if (isRatingModalVisible) {
+    return (
+      <Modal animate='heart-beat' visible={true} transparent={true}>
+        <View className='flex-1 items-center justify-center bg-[#00000060]' >
+          <View className='w-[96%] p-[20px] rounded-[10px] bg-white items-center justify-center gap-[10px]' >
+            <Text>How was your experience with</Text>
+            <Text className='font-bold text-primary text-[15px]' >{vendorFullData?.businessName || ''}?</Text>
+            <RatingStars rating={rating} setRating={setRating} />
+            <TextInput
+              value={ratingComment}
+              onChangeText={setRatingComment}
+              multiline
+              numberOfLines={5}
+              placeholder='Leave a comment (Optional)'
+              className='rounded-[10px] border border-[#ccc] p-[10px] w-full'
+            />
+            <View className='flex-row w-full gap-[10px]'>
+              <TouchableOpacity
+                className='flex-1 p-[10px] rounded-[10px] bg-primary'
+                disabled={isCommonLoaderVisible || rating === 0}
+                onPress={handleSubmitRating}
+              >
+                <Text className='text-white text-center'>{isCommonLoaderVisible ? "Submitting..." : "Submit Rating"}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                className='flex-1 p-[10px] rounded-[10px] bg-[#ccc]'
+                onPress={() => { setIsRatingModalVisible(false); }}
+              >
+                <Text className='text-white text-center'>Maybe later</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    )
+  }
+
   return (
     <View className='flex-1 gap-[1px]'>
+      {isOrderCommentModalVisible &&
+        <Modal animationType='slide' >
+          <View className='flex-1 bg-[#00000080] items-center justify-center' >
+            <View className='p-[20px] w-[96%] bg-white rounded-[10px] gap-[15px] items-center justify-center' >
+              <Text className='font-bold text-primary text-[18px]' >Add Comment to Order</Text>
+              <Text className='text-[12px] text-center' >Any special instructions or preferences for your order?</Text>
+              <TextInput
+                value={orderComment}
+                onChangeText={setOrderComment}
+                multiline
+                numberOfLines={5}
+                className='rounded-[10px] border border-[#ccc] p-[10px] w-full'
+                placeholder='Enter any special instructions, cooking preference, or notes for the vendor...'
+              />
+              <View className='flex-row w-full gap-[10px]' >
+                <TouchableOpacity className='p-[10px] rounded-[10px] flex-1 bg-primaryGreen' onPress={() => { const isOrderCommentAdded = true; setIsOrderCommentModalVisible(false); confirmOrder(isOrderCommentAdded) }} ><Text className='text-center text-white' >Confirm</Text></TouchableOpacity>
+                <TouchableOpacity className='p-[10px] rounded-[10px] flex-1 bg-[#ccc]' onPress={() => { setIsOrderCommentModalVisible(false); confirmOrder() }} ><Text className='text-center' >Cancel</Text></TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      }
+
       <Modal animationType='slide' transparent={true} visible={isOfflineModalVisible} >
         <TouchableOpacity className='flex-1' onPress={() => { setIsOfflineModalVisible(false); router.replace('/Home'); }} >
           <Image className='absolute top-0' resizeMode='stretch' source={require('../../assets/images/closedShutterImage.png')} style={{ height: '100%', width: '100%' }} />

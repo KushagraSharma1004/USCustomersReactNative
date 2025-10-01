@@ -101,12 +101,10 @@ const MyOrders = () => {
               </View>
               <TouchableOpacity onPress={() => { if (!item.address.customerLocation?.latitude || !item.address.customerLocation?.longitude) { return }; Linking.openURL(`https://www.google.com/maps/place/${item.address.customerLocation.latitude}+${item.address.customerLocation.longitude}/`) }} className='w-full flex-row' >
                 <Text className='font-bold' >Address:</Text>
-                <View className='flex-1 justify-end items-end' >
-                  <HighlightText text={item.address.nameForAddress} highlight={searchText} />
-                  <HighlightText text={`${item.address.customerPlotNumber}, ${item.address.customerComplexNameOrBuildingName}, ${item.address.customerLandmark}, ${item.address.customerRoadNameOrStreetName}, ${item.address.customerVillageNameOrTownName}`} highlight={searchText} />
-                  <HighlightText text={`${item.address.customerCity}, ${item.address.customerState} - ${item.address.customerPincode}`} highlight={searchText} />
+                <Text className='flex-1 justify-end items-end text-right flex flex-col' >
+                  <HighlightText text={`${item.address.nameForAddress}, ${item.address.customerPlotNumber}, ${item.address.customerComplexNameOrBuildingName}, ${item.address.customerLandmark}, ${item.address.customerRoadNameOrStreetName}, ${item.address.customerVillageNameOrTownName}, ${item.address.customerCity}, ${item.address.customerState} - ${item.address.customerPincode}`} highlight={searchText} />
                   <HighlightText text={`Ph no. ${item.address.mobileNumberForAddress}`} highlight={searchText} />
-                </View>
+                </Text>
               </TouchableOpacity>
               <View className='border-b-[1px] border-[#ccc]' ></View>
               <View className='w-full flex-row' >
@@ -179,7 +177,7 @@ const MyOrders = () => {
               {item.customerComment && item.customerComment !== '' &&
                 <View className='w-full gap-[5px]' >
                   <Text className='font-bold text-[16px] text-primaryRed text-center' >Your Comment</Text>
-                  <ScrollView className='flex-1 max-h-[150px] bg-[#F0F2F5] rounded-[10px] border-[3px] border-primaryRed' >
+                  <ScrollView className='flex-1 max-h-[150px] bg-[#F0F2F5] rounded-[10px] border-[3px] border-primaryRed p-[10px]' >
                     <HighlightText text={item.customerComment.trimEnd()} highlight={searchText} />
                   </ScrollView>
                 </View>
