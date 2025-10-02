@@ -15,6 +15,7 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import MyVendorsListModal from '../components/MyVendorsListModal';
 import BouncyCheckbox from "react-native-bouncy-checkbox";
 import { RatingStars } from '../components/RatingStars';
+import MyCartForCustomisedQRModal from '../components/MyCartForCustomisedQRModal'
 
 const Vendors = () => {
   const { customerMobileNumber, fetchMyVendors, setCustomerMobileNumber, fetchVendorOffers } = useAuth()
@@ -48,6 +49,7 @@ const Vendors = () => {
   const [isRatingModalVisible, setIsRatingModalVisible] = useState(false)
   const [rating, setRating] = useState(0)
   const [ratingComment, setRatingComment] = useState('')
+  const [isCartModalVisible, setIsCartModalVisible] = useState(false)
 
   // useEffect(() => {
   //   if(fromCustomisedQR) {
@@ -64,9 +66,14 @@ const Vendors = () => {
       localStorage.setItem('customerMobileNumber', 'undefined');
       setCustomerMobileNumber('');
       setTimeout(() => {
+        localStorage.removeItem('customerMobileNumber');
+        localStorage.setItem('customerMobileNumber', '');
+        localStorage.setItem('customerMobileNumber', null);
+        localStorage.setItem('customerMobileNumber', 'undefined');
         const stored = localStorage.getItem('customerMobileNumber');
         console.log('✅ Final localStorage value:', stored);
         console.log('✅ Type of value:', typeof stored);
+        fetchCartItemsForCustomisedQR()
       }, 200);
     }
   }, [fromCustomisedQR])
@@ -78,6 +85,34 @@ const Vendors = () => {
     const vendorChangeEvent = new CustomEvent('vendorChanged');
     document.dispatchEvent(vendorChangeEvent);
   }, [params.vendor]);
+
+  useEffect(() => {
+    if (params.fromCustomisedQR === 'true') {
+      localStorage.setItem('customerMobileNumber', params.fromCustomisedQR);
+    }
+
+    // Dispatch custom event when vendor changes
+    const fromCustomisedQRChangedEvent = new CustomEvent('fromCustomisedQRChanged');
+    document.dispatchEvent(fromCustomisedQRChangedEvent);
+  }, [params.fromCustomisedQR]);
+
+  const fetchCartItemsForCustomisedQR = () => {
+    try {
+      // Get all carts from localStorage
+      const storedCart = JSON.parse(localStorage.getItem("cartItems")) || {};
+
+      // Get cart for this vendor only
+      const vendorCart = storedCart || {};
+
+      // Update state
+      setCartItemsForCustomisedQR(vendorCart);
+      return vendorCart;
+    } catch (error) {
+      console.error("Error fetching cart items:", error);
+      setCartItemsForCustomisedQR({});
+      return {};
+    }
+  };
 
   const fetchVendorFullData = async () => {
     if (!vendorMobileNumber || vendorMobileNumber.length !== 10) {
@@ -220,6 +255,7 @@ const Vendors = () => {
         localCart[vendorMobileNumber][item.id].updatedAt = new Date();
       } else {
         localCart[vendorMobileNumber][item.id] = {
+          id: item.id,
           name: item.name,
           price: item.prices[0].sellingPrice,
           prices: item.prices,
@@ -844,13 +880,35 @@ const Vendors = () => {
       </View>}
 
       {!isSearchBarVisible && fromCustomisedQR && cartItemsForCustomisedQR[vendorMobileNumber] && Object.keys(cartItemsForCustomisedQR[vendorMobileNumber]).length > 0 &&
-        <TouchableOpacity onPress={confirmOrder} className='p-[10px] my-[5px] bg-primary rounded-[5px] w-[85%] left-[10px]' >
+        <TouchableOpacity onPress={() => setIsCartModalVisible(true)} className='p-[10px] my-[5px] bg-primary rounded-[5px] w-[85%] left-[10px]' >
           <Text className='text-white text-[18px] text-center items-center justify-center'>Confirm Order <Text className='h-[30px] w-[50px] rounded-full items-center justify-center bg-white text-black text-[13px] p-[2px]' >{Object.values(cartItemsForCustomisedQR[vendorMobileNumber]).reduce((total, item) => total + item.quantity, 0)}</Text></Text>
           <Text className='text-white text-[12px] text-center'>Total: ₹{Object.values(cartItemsForCustomisedQR[vendorMobileNumber]).reduce((total, item) => total + (item.price * item.quantity), 0)}</Text>
         </TouchableOpacity>
       }
 
       <MyVendorsListModal vendorMobileNumber={vendorMobileNumber} isMyVendorsListModalVisible={isMyVendorsListModalVisible} setIsMyVendorsListModalVisible={setIsMyVendorsListModalVisible} setIsRemoveVendorFromMyVendorsListConfirmationModalVisible={setIsRemoveVendorFromMyVendorsListConfirmationModalVisible} setVendorMobileNumberToRemoveFromMyVendorsList={setVendorMobileNumberToRemoveFromMyVendorsList} />
+
+      {isCartModalVisible && (
+        <Modal animationType='slide' transparent={true} visible={isCartModalVisible} >
+          <View className='flex-1 bg-[#00000060] items-center justify-center p-[10px]' >
+            <ScrollView stickyHeaderIndices={[0]} className='bg-white h-full w-full rounded-[10px] border-[5px]' >
+              <TouchableOpacity onPress={() => setIsCartModalVisible(false)} className='w-full bg-white mb-[5px] items-center border-b-[5px] border-primary rounded-[10px] p-[10px]' >
+                <Image style={{height:30, width:30}} className='absolute left-[5px] top-[5px]' source={require('../../assets/images/arrowLeftImage.png')} />
+                <Text className='text-[18px] font-bold text-center flex-1 text-primary' >My Cart</Text>
+                </TouchableOpacity>
+              <MyCartForCustomisedQRModal
+                cartItems={cartItemsForCustomisedQR[vendorMobileNumber] || null}
+                cartCount={cartItemsForCustomisedQR[vendorMobileNumber] ? Object.values(cartItemsForCustomisedQR[vendorMobileNumber]).reduce((total, item) => total + item.quantity, 0) : 0}
+                cartTotal={cartItemsForCustomisedQR[vendorMobileNumber] ? Object.values(cartItemsForCustomisedQR[vendorMobileNumber]).reduce((total, item) => total + (item.price * item.quantity), 0) : 0}
+                fetchCartItems={fetchCartItemsForCustomisedQR}
+                setCartItemsForCustomisedQR={setCartItemsForCustomisedQR}
+                setIsCartModalVisible={setIsCartModalVisible}
+                customisedQRId={customisedQRId}>
+              </MyCartForCustomisedQRModal>
+            </ScrollView>
+          </View>
+        </Modal>
+      )}
     </View>
   )
 }

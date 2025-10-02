@@ -780,69 +780,73 @@ const MyCart = () => {
             <Text className='font-bold text-[16px] text-white' >OFFERS</Text>
             <Image style={{ height: 25, width: 25 }} className='bg-white rounded-full' source={isOffersSectionOpen ? require('../../assets/images/arrowDownImage.png') : require('../../assets/images/arrowRightImage.png')} />
           </TouchableOpacity>
-          {isOffersSectionOpen && <FlatList
-            data={vendorOffers.filter((offer) => offer.active)}
-            renderItem={({ item }) => {
-              const isApplicable = applicableOffers.some(offer => offer.id === item.id);
-              const isSelected = selectedOffers.includes(item.id);
-
-              return (
-                <TouchableOpacity
-                  onPress={() => isApplicable && toggleOfferSelection(item.id)}
-                  className={`p-[10px] mt-[5px] rounded-[10px] gap-[5px] ${isApplicable ? 'bg-white' : 'bg-gray-100'} ${isSelected ? 'border-2 border-primaryGreen' : 'border border-gray-300'}`}
-                  disabled={!isApplicable}
-                >
-                  <View className='flex-row justify-between items-center'>
-                    <Text className='font-bold text-primary text-[16px]' >{item.title}</Text>
-                    {isApplicable && <Text className={`${isSelected ? 'text-primaryGreen font-bold' : 'text-[#ccc] border border-[#ccc] rounded-[5px] px-[10px] py-[2px]'}`}>{isSelected ? '✓ Applied' : 'Apply'}</Text>}
-                    {!isApplicable && <Text className='text-primaryRed text-[12px]'>Not applicable</Text>}
-                  </View>
-
-                  <Text className='text-[20px] font-bold text-primaryGreen' >{item.valueType === '₹' ? `₹${item.value}` : `${item.value}%`} OFF</Text>
-                  <Text className='text-[12px]' >{item.description}</Text>
-                  {item.minimumOrderAmount ? <Text className='' >Min. Order value: ₹{item.minimumOrderAmount}</Text> : ''}
-                  <View className='border-b-[1px] border-[#ccc]' />
-                  {item.applicableOn === 'All Items' && <Text>Applicable on: All items</Text>}
-                  {item.applicableOn !== 'All Items' && <Text className='font-[15px] font-bold' >Applicable on: </Text>}
-                  {item.applicableOn !== 'All Items' &&
-                    // {item.applicableOn !== 'All Items' &&
-                    <FlatList
-                      data={item.applicableItems}
-                      keyExtractor={(appItem, index) => appItem.id || index.toString()}
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      renderItem={({ item: appItem }) => (
-                        <View className="flex-row items-center mr-[5px] border border-[#ccc] p-[5px] rounded-[5px]">
-                          {appItem.image && (
-                            <Image
-                              source={{ uri: appItem.image }}
-                              style={{ width: 32, height: 32 }}
-                              className="rounded mr-1"
-                            />
+          {isOffersSectionOpen && (
+            <FlatList
+              data={vendorOffers.filter((offer) => offer.active)}
+              horizontal
+              className='mt-[5px]'
+              renderItem={({ item }) => {
+                const isApplicable = applicableOffers.some(offer => offer.id === item.id);
+                const isSelected = selectedOffers.includes(item.id);
+                return (
+                  <TouchableOpacity
+                    onPress={() => isApplicable && toggleOfferSelection(item.id)}
+                    className={`flex-row p-[10px] mr-[3px] h-[180px] w-[320px] rounded-[10px] gap-[5px] ${isApplicable ? 'bg-white' : 'bg-gray-100'} ${isSelected ? 'border-2 border-primaryGreen' : 'border border-gray-300'}`}
+                    disabled={!isApplicable}
+                  >
+                    <View className='gap-[5px] items-center justify-center' >
+                      {item.applicableOn === 'All Items' && <Text className='font-bold text-center' >Applicable</Text>}
+                      {item.applicableOn === 'All Items' && <Text className='font-bold text-center' >on</Text>}
+                      {item.applicableOn === 'All Items' && <Text className='font-bold text-center' >All Items</Text>}
+                      {item.applicableOn !== 'All Items' && <Text className='font-bold' >Applicable on</Text>}
+                      {item.applicableOn !== 'All Items' &&
+                        <FlatList
+                          data={item.applicableItems}
+                          keyExtractor={(appItem, index) => appItem.id || index.toString()}
+                          nestedScrollEnabled={true}
+                          className='gap-[3px]'
+                          renderItem={({ item: appItem }) => (
+                            <View className="flex-row items-center border border-[#ccc] p-[5px] rounded-[5px]">
+                              {appItem.image && (
+                                <Image
+                                  source={{ uri: appItem.image }}
+                                  style={{ width: 32, height: 32 }}
+                                  className="rounded mr-1"
+                                />
+                              )}
+                              <View>
+                                <Text className="text-[10px] text-gray-700 text-center">{appItem.name}</Text>
+                                <Text className="text-[10px] text-gray-700 text-center">₹{appItem.sellingPrice}</Text>
+                              </View>
+                            </View>
                           )}
-                          <View>
-                            <Text className="text-[10px] text-gray-700 text-center">{appItem.name}</Text>
-                            <Text className="text-[10px] text-gray-700 text-center">₹{appItem.sellingPrice}</Text>
-                          </View>
-                        </View>
-                      )}
-                    />
-                    // }
-                  }
-                </TouchableOpacity>
-              )
-            }}
-          />}
+                        />
+                      }
+                    </View>
+
+                    <View className='h-full border-l border-[#ccc] pr-[5px]' />
+
+                    <ScrollView stickyHeaderIndices={[0]} contentContainerStyle={{ gap: 3 }} className='gap-[5px] flex-1' >
+                      <View className='flex-row justify-between items-center bg-white'>
+                        <Text className='font-bold text-primary text-[16px]' >{item.title}</Text>
+                        {isApplicable && <Text className={`${isSelected ? 'text-primaryGreen font-bold' : 'text-[#ccc] border border-[#ccc] rounded-[5px] px-[10px] py-[2px]'}`}>{isSelected ? '✓ Applied' : 'Apply'}</Text>}
+                        {!isApplicable && <Text className='text-primaryRed text-[12px]'>Not applicable</Text>}
+                      </View>
+                      <View className='w-full pb-[3px] border-b border-[#ccc]' />
+                      <Text className='text-[20px] font-bold text-primaryGreen' >{item.valueType === '₹' ? `₹${item.value}` : `${item.value}%`} OFF</Text>
+                      {item.minimumOrderAmount ? <Text className='' >Min. Order value: ₹{item.minimumOrderAmount}</Text> : ''}
+                      <Text className='text-[12px]' >{item.description}</Text>
+                    </ScrollView>
+                  </TouchableOpacity>
+                )
+              }}
+            />
+          )}
+
         </View>}
 
         {/* Offer Summary */}
-        {/* {applicableOffers.length > 0 && ( */}
         <View className='p-[10px] bg-green-50 rounded-[10px] border border-green-200'>
-          {/* {selectedOffers.length > 0 &&
-            <Text className='font-bold text-primaryGreen text-center mb-[5px]'>
-              Applied Offers {selectedOffers.length > 0 ? `(${selectedOffers.length} selected)` : '(Auto-applied best offer)'}
-            </Text>
-          } */}
           <View className={`border-green-200 `}>
             <View className='flex-row justify-between items-center'>
               <Text className='text-[12px]'>Sub Total</Text>
