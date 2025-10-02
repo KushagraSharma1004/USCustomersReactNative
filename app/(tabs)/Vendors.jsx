@@ -51,13 +51,6 @@ const Vendors = () => {
   const [ratingComment, setRatingComment] = useState('')
   const [isCartModalVisible, setIsCartModalVisible] = useState(false)
 
-  // useEffect(() => {
-  //   if(fromCustomisedQR) {
-  //     setCustomerMobileNumber('')
-  //     localStorage.removeItem('customerMobileNumber')
-  //   }
-  // }, [fromCustomisedQR])
-
   useEffect(() => {
     if (fromCustomisedQR) {
       localStorage.removeItem('customerMobileNumber');
@@ -647,6 +640,21 @@ const Vendors = () => {
     )
   }
 
+  if(isOfflineModalVisible || vendorFullData?.balance < 12){
+    return (
+      <Modal animationType='slide' transparent={true} visible={isOfflineModalVisible || vendorFullData?.balance < 12} >
+        <TouchableOpacity className='flex-1' onPress={() => { setIsOfflineModalVisible(false); if(!fromCustomisedQR && !fromQR) router.replace('/Home'); }} >
+          <Image className='absolute top-0' resizeMode='stretch' source={require('../../assets/images/closedShutterImage.png')} style={{ height: '100%', width: '100%' }} />
+          <Image className='absolute top-[10px] right-[10px] z-50' source={require('../../assets/images/crossImage.png')} style={{ height: 30, width: 30 }} />
+          <Text className='mt-[20px] text-[20px] font-bold text-center' >{vendorFullData?.businessName}</Text>
+          <Text className='mt-[100px] font-bold text-[25px] text-primaryRed text-center' >CLOSED</Text>
+          {vendorFullData?.leaveNotice && vendorFullData?.leaveNotice !== '' && <Text className='mt-[100px] font-bold text-[20px] text-primaryRed text-center' >Notice</Text>}
+          {vendorFullData?.leaveNotice && vendorFullData?.leaveNotice !== '' && <Text className='mt-[10px] text-center text-[16px]' >{vendorFullData?.leaveNotice}</Text>}
+        </TouchableOpacity>
+      </Modal>
+    )
+  }
+
   return (
     <View className='flex-1 gap-[1px]'>
       {isOrderCommentModalVisible &&
@@ -672,17 +680,6 @@ const Vendors = () => {
           </View>
         </Modal>
       }
-
-      <Modal animationType='slide' transparent={true} visible={isOfflineModalVisible} >
-        <TouchableOpacity className='flex-1' onPress={() => { setIsOfflineModalVisible(false); router.replace('/Home'); }} >
-          <Image className='absolute top-0' resizeMode='stretch' source={require('../../assets/images/closedShutterImage.png')} style={{ height: '100%', width: '100%' }} />
-          <Image className='absolute top-[10px] right-[10px] z-50' source={require('../../assets/images/crossImage.png')} style={{ height: 30, width: 30 }} />
-          <Text className='mt-[20px] text-[20px] font-bold text-center' >{vendorFullData?.businessName}</Text>
-          <Text className='mt-[100px] font-bold text-[25px] text-primaryRed text-center' >CLOSED</Text>
-          {vendorFullData?.leaveNotice && vendorFullData?.leaveNotice !== '' && <Text className='mt-[100px] font-bold text-[20px] text-primaryRed text-center' >Notice</Text>}
-          {vendorFullData?.leaveNotice && vendorFullData?.leaveNotice !== '' && <Text className='mt-[10px] text-center text-[16px]' >{vendorFullData?.leaveNotice}</Text>}
-        </TouchableOpacity>
-      </Modal>
 
       {isCommonLoaderVisible && <Loader />}
       {isRemoveVendorFromMyVendorsListConfirmationModalVisible &&
