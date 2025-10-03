@@ -122,7 +122,7 @@ const MyCartForCustomisedQRModal = ({ cartItems, cartCount, cartTotal, fetchCart
             const customisedQRDocRef = doc(db, 'users', vendorMobileNumber, 'myQRs', decryptData(customisedQRId));
             const customisedQRDocSnap = await getDoc(customisedQRDocRef);
             if (customisedQRDocSnap.exists()) {
-                const customisedQRData = customisedQRDocSnap.data();
+                const customisedQRData = {...customisedQRDocSnap.data(), id: customisedQRDocSnap.data().id};
                 setCustomisedQRData(customisedQRData)
             }
         } catch (error) {
@@ -425,8 +425,12 @@ const MyCartForCustomisedQRModal = ({ cartItems, cartCount, cartTotal, fetchCart
                 QRCodeLink: customisedQRData?.link || null,
                 QRCodeMessage: customisedQRData?.message || null,
                 QRCodePin: customisedQRData?.pin || null,
-                customerMobileNumber: customerMobileNumberFromCustomisedQR.length > 0 ? customerMobileNumberFromCustomisedQR : null,
-                customerName: customerNameFromCustomisedQR || null,
+                customerMobileNumberForCustomisedQR: customerMobileNumberFromCustomisedQR || null,
+                // customerMobileNumber: customerMobileNumberFromCustomisedQR.length > 0 ? customerMobileNumberFromCustomisedQR : null,
+                customerMobileNumber: '1000000001',
+                customerNameForCustomisedQR: customerNameFromCustomisedQR || null,
+                QRCode: decryptData(customisedQRId) || null,
+                QRCodeId: decryptData(customisedQRId) || null,
             };
 
             if (orderDetails.items.length === 0 || orderDetails.totalAmount <= 0) {
