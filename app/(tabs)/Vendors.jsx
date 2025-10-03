@@ -640,10 +640,10 @@ const Vendors = () => {
     )
   }
 
-  if(isOfflineModalVisible || vendorFullData?.balance < 12){
+  if (isOfflineModalVisible || vendorFullData?.balance < 12) {
     return (
       <Modal animationType='slide' transparent={true} visible={isOfflineModalVisible || vendorFullData?.balance < 12} >
-        <TouchableOpacity className='flex-1' onPress={() => { setIsOfflineModalVisible(false); if(!fromCustomisedQR && !fromQR) router.replace('/Home'); }} >
+        <TouchableOpacity className='flex-1' onPress={() => { setIsOfflineModalVisible(false); if (!fromCustomisedQR && !fromQR) router.replace('/Home'); }} >
           <Image className='absolute top-0' resizeMode='stretch' source={require('../../assets/images/closedShutterImage.png')} style={{ height: '100%', width: '100%' }} />
           <Image className='absolute top-[10px] right-[10px] z-50' source={require('../../assets/images/crossImage.png')} style={{ height: 30, width: 30 }} />
           <Text className='mt-[20px] text-[20px] font-bold text-center' >{vendorFullData?.businessName}</Text>
@@ -890,9 +890,9 @@ const Vendors = () => {
           <View className='flex-1 bg-[#00000060] items-center justify-center p-[10px]' >
             <ScrollView stickyHeaderIndices={[0]} className='bg-white h-full w-full rounded-[10px] border-[5px]' >
               <TouchableOpacity onPress={() => setIsCartModalVisible(false)} className='w-full bg-white mb-[5px] items-center border-b-[5px] border-primary rounded-[10px] p-[10px]' >
-                <Image style={{height:30, width:30}} className='absolute left-[5px] top-[5px]' source={require('../../assets/images/arrowLeftImage.png')} />
+                <Image style={{ height: 30, width: 30 }} className='absolute left-[5px] top-[5px]' source={require('../../assets/images/arrowLeftImage.png')} />
                 <Text className='text-[18px] font-bold text-center flex-1 text-primary' >My Cart</Text>
-                </TouchableOpacity>
+              </TouchableOpacity>
               <MyCartForCustomisedQRModal
                 cartItems={cartItemsForCustomisedQR[vendorMobileNumber] || null}
                 cartCount={cartItemsForCustomisedQR[vendorMobileNumber] ? Object.values(cartItemsForCustomisedQR[vendorMobileNumber]).reduce((total, item) => total + item.quantity, 0) : 0}

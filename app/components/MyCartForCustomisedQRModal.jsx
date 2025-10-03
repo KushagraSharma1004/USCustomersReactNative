@@ -9,6 +9,7 @@ import { useCart } from "../context/CartContext";
 import { decryptData, encryptData } from '../context/hashing'
 import Loader from './Loader'
 import { RatingStars } from './RatingStars';
+import TextInputComponent from './TextInput';
 
 const MyCartForCustomisedQRModal = ({ cartItems, cartCount, cartTotal, fetchCartItems, setCartItemsForCustomisedQR, setIsCartModalVisible, customisedQRId }) => {
     const { customerMobileNumber, customerFullData, vendorOffers } = useAuth()
@@ -29,6 +30,10 @@ const MyCartForCustomisedQRModal = ({ cartItems, cartCount, cartTotal, fetchCart
     const [selectedOffers, setSelectedOffers] = useState([]);
     const [finalAmount, setFinalAmount] = useState(0);
     const [totalDiscount, setTotalDiscount] = useState(0);
+    const [customerMobileNumberFromCustomisedQR, setCustomerMobileNumberFromCustomisedQR] = useState('')
+    const [customerNameFromCustomisedQR, setCustomerNameFromCustomisedQR] = useState('')
+    const [customisedQRPin, setCustomisedQRPin] = useState('')
+    const [customisedQRData, setCustomisedQRData] = useState(null)
 
     const calculateOffers = useCallback(() => {
         if (!vendorOffers || !cartItems || Object.keys(cartItems).length === 0) {
@@ -111,6 +116,23 @@ const MyCartForCustomisedQRModal = ({ cartItems, cartCount, cartTotal, fetchCart
             setSelectedOffers([offerId])
         }
     };
+
+    const fetchCustomisedQRData = async () => {
+        try {
+            const customisedQRDocRef = doc(db, 'users', vendorMobileNumber, 'myQRs', decryptData(customisedQRId));
+            const customisedQRDocSnap = await getDoc(customisedQRDocRef);
+            if (customisedQRDocSnap.exists()) {
+                const customisedQRData = customisedQRDocSnap.data();
+                setCustomisedQRData(customisedQRData)
+            }
+        } catch (error) {
+            console.log('Error fetching customised QR data: ', error)
+        }
+    }
+
+    useEffect(() => {
+        fetchCustomisedQRData()
+    }, [customisedQRId])
 
     useEffect(() => {
         calculateOffers();
@@ -400,7 +422,11 @@ const MyCartForCustomisedQRModal = ({ cartItems, cartCount, cartTotal, fetchCart
                     } : null;
                 }).filter(Boolean),
                 totalDiscount: totalDiscount,
-                QRCode: decryptData(customisedQRId) || null,
+                QRCodeLink: customisedQRData?.link || null,
+                QRCodeMessage: customisedQRData?.message || null,
+                QRCodePin: customisedQRData?.pin || null,
+                customerMobileNumber: customerMobileNumberFromCustomisedQR.length > 0 ? customerMobileNumberFromCustomisedQR : null,
+                customerName: customerNameFromCustomisedQR || null,
             };
 
             if (orderDetails.items.length === 0 || orderDetails.totalAmount <= 0) {
@@ -531,19 +557,34 @@ const MyCartForCustomisedQRModal = ({ cartItems, cartCount, cartTotal, fetchCart
                 <Modal animationType='slide' >
                     <View className='flex-1 bg-[#00000080] items-center justify-center' >
                         <View className='p-[20px] w-[96%] bg-white rounded-[10px] gap-[15px] items-center justify-center' >
-                            <Text className='font-bold text-primary text-[18px]' >Add Comment to Order</Text>
-                            <Text className='text-[12px] text-center' >Any special instructions or preferences for your order?</Text>
-                            <TextInput
-                                value={orderComment}
-                                onChangeText={setOrderComment}
-                                multiline
-                                maxLength={1000}
-                                numberOfLines={5}
-                                className='rounded-[10px] border border-[#ccc] p-[10px] w-full'
-                                placeholder='Enter any special instructions, cooking preference, or notes for the vendor...'
-                            />
+                            {customisedQRData?.pin && customisedQRData?.pin !== '' && <Text className='font-bold text-primary text-[18px]' >Add Pin/Comment to Order</Text>}
+                            {(!customisedQRData?.pin || customisedQRData?.pin === '') && <Text className='font-bold text-primary text-[18px]' >Add Comment to Order</Text>}
+                            {customisedQRData?.pin && customisedQRData?.pin !== '' && <TextInputComponent className={'text-center bg-wheat'} value={customisedQRPin} onChangeText={setCustomisedQRPin} placeholder={'Enter QR Pin (Mandatory)'} />}
+                            <Text className='text-[12px] text-center text-primary' >Any special instructions or preferences for your order?</Text>
+                            <TextInput value={orderComment} onChangeText={setOrderComment} multiline maxLength={1000} numberOfLines={5} className='rounded-[10px] border border-[#ccc] p-[10px] w-full' placeholder='Enter any special instructions, cooking preference, or notes for the vendor...' />
+                            <TextInputComponent keyboardType={'numeric'} value={customerMobileNumberFromCustomisedQR} onChangeText={setCustomerMobileNumberFromCustomisedQR} placeholder={'Enter your mobile number (Optional)'} maxLength={10} />
+                            <TextInputComponent value={customerNameFromCustomisedQR} onChangeText={setCustomerNameFromCustomisedQR} placeholder={'Enter your name (Optional)'} />
                             <View className='flex-row w-full gap-[10px]' >
-                                <TouchableOpacity className='p-[10px] rounded-[10px] flex-1 bg-primaryGreen' onPress={() => { const isOrderCommentAdded = true; setIsOrderCommentModalVisible(false); confirmOrder(isOrderCommentAdded) }} ><Text className='text-center text-white' >Confirm</Text></TouchableOpacity>
+                                <TouchableOpacity className='p-[10px] rounded-[10px] flex-1 bg-primaryGreen'
+                                    onPress={() => {
+                                        if (customisedQRData?.pin && customisedQRData?.pin !== '') {
+                                            if (customisedQRData?.pin !== customisedQRPin) {
+                                                alert('Incorrect QR Pin.')
+                                                return
+                                            }
+                                        }
+                                        if (customerMobileNumberFromCustomisedQR.length > 0) {
+                                            if (customerMobileNumberFromCustomisedQR.length !== 10) {
+                                                alert('Invalid mobile number.')
+                                                return
+                                            }
+                                        }
+                                        const isOrderCommentAdded = true;
+                                        setIsOrderCommentModalVisible(false);
+                                        confirmOrder(isOrderCommentAdded)
+                                    }} >
+                                    <Text className='text-center text-white' >Confirm</Text>
+                                </TouchableOpacity>
                                 <TouchableOpacity className='p-[10px] rounded-[10px] flex-1 bg-[#ccc]' onPress={() => { setIsOrderCommentModalVisible(false); confirmOrder() }} ><Text className='text-center' >Cancel</Text></TouchableOpacity>
                             </View>
                         </View>
