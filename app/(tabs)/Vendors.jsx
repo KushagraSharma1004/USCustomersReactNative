@@ -730,8 +730,17 @@ const Vendors = () => {
 
       {decryptData(localStorage.getItem('customerMobileNumber')).length === 10 && <Header setIsMyVendorsListModalVisible={setIsMyVendorsListModalVisible} />}
 
-      <View className='w-[98%] self-center bg-white rounded-[10px] gap-[5px] border border-[#ccc]' >
-        <View className='px-[10px] py-[5px] w-full flex-row items-center justify-between ' >
+      <View className='w-full self-center bg-white rounded-b-[10px] border border-[#ccc] px-[10px]' >
+        {fromCustomisedQR && (
+          <>
+            <TouchableOpacity onPress={() => router.push('/Login')} className='flex-row items-center justify-center gap-[10px]' >
+              <Image style={{ height: 40, width: 40 }} source={require('../../assets/images/iconRoundImage.png')} />
+              <Text className='font-bold text-primary' >Explore more with unoshops.com</Text>
+            </TouchableOpacity>
+            <View className='border-b border-[#ccc]' />
+          </>
+        )}
+        <View className='p-[10px] w-full flex-row items-center justify-between' >
           <Text className='text-center text-[16px] text-primaryGreen font-bold flex-1 border-r'>{vendorFullData?.businessName}</Text>
           <TouchableOpacity className='px-[10px]' onPress={() => Linking.openURL(`tel:${vendorMobileNumber}`)} ><Text className='text-primary text-center' >Call 📞</Text></TouchableOpacity>
         </View>
