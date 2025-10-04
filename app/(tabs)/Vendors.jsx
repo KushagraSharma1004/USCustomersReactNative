@@ -50,6 +50,7 @@ const Vendors = () => {
   const [rating, setRating] = useState(0)
   const [ratingComment, setRatingComment] = useState('')
   const [isCartModalVisible, setIsCartModalVisible] = useState(false)
+  const [toShowSplashScreen, setToShowSplashScreen] = useState(true)
 
   useEffect(() => {
     if (fromCustomisedQR) {
@@ -70,6 +71,17 @@ const Vendors = () => {
       }, 200);
     }
   }, [fromCustomisedQR])
+
+  useEffect(() => {
+    if (fromCustomisedQR) {
+      const timer = setTimeout(() => {
+        console.log('first');
+        setToShowSplashScreen(false);
+      }, 2000);
+
+      return () => clearTimeout(timer); // cleanup
+    }
+  }, [fromCustomisedQR]);
 
   useEffect(() => {
     localStorage.setItem('vendor', params.vendor);
@@ -652,6 +664,14 @@ const Vendors = () => {
           {vendorFullData?.leaveNotice && vendorFullData?.leaveNotice !== '' && <Text className='mt-[10px] text-center text-[16px]' >{vendorFullData?.leaveNotice}</Text>}
         </TouchableOpacity>
       </Modal>
+    )
+  }
+
+  if (toShowSplashScreen) {
+    return (
+      <View className='flex-1 items-center justify-center' >
+        <Loader innerText={<Text className='text-center font-bold text-[30px] text-primary mt-[30px]' >Welcome to Unoshops.com!</Text>} />
+      </View>
     )
   }
 

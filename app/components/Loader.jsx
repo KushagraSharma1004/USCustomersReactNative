@@ -13,7 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 const { width, height } = Dimensions.get('window');
 
-const Loader = () => {
+const Loader = ({innerText = null}) => {
   const scale = useSharedValue(1);
   const rotate = useSharedValue(0);
   const opacity = useSharedValue(0);
@@ -100,6 +100,7 @@ const Loader = () => {
           {/* </View> */}
         {/* </View> */}
       </View>
+      {innerText}
     </Animated.View>
   );
 };
