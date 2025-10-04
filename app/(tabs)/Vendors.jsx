@@ -50,7 +50,7 @@ const Vendors = () => {
   const [rating, setRating] = useState(0)
   const [ratingComment, setRatingComment] = useState('')
   const [isCartModalVisible, setIsCartModalVisible] = useState(false)
-  const [toShowSplashScreen, setToShowSplashScreen] = useState(true)
+  const [toShowSplashScreen, setToShowSplashScreen] = useState(false)
 
   useEffect(() => {
     if (fromCustomisedQR) {
@@ -74,6 +74,7 @@ const Vendors = () => {
 
   useEffect(() => {
     if (fromCustomisedQR) {
+      setToShowSplashScreen(true)
       const timer = setTimeout(() => {
         console.log('first');
         setToShowSplashScreen(false);
