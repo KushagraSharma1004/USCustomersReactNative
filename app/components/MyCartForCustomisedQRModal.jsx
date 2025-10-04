@@ -589,7 +589,7 @@ const MyCartForCustomisedQRModal = ({ cartItems, cartCount, cartTotal, fetchCart
                                     }} >
                                     <Text className='text-center text-white' >Confirm</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity className='p-[10px] rounded-[10px] flex-1 bg-[#ccc]' onPress={() => { setIsOrderCommentModalVisible(false); confirmOrder() }} ><Text className='text-center' >Cancel</Text></TouchableOpacity>
+                                <TouchableOpacity className='p-[10px] rounded-[10px] flex-1 bg-[#ccc]' onPress={() => { setIsOrderCommentModalVisible(false); setIsOrderCommentModalShown(false); }} ><Text className='text-center' >Back</Text></TouchableOpacity>
                             </View>
                         </View>
                     </View>
