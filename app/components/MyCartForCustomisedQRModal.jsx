@@ -122,7 +122,7 @@ const MyCartForCustomisedQRModal = ({ cartItems, cartCount, cartTotal, fetchCart
             const customisedQRDocRef = doc(db, 'users', vendorMobileNumber, 'myQRs', decryptData(customisedQRId));
             const customisedQRDocSnap = await getDoc(customisedQRDocRef);
             if (customisedQRDocSnap.exists()) {
-                const customisedQRData = {...customisedQRDocSnap.data(), id: customisedQRDocSnap.data().id};
+                const customisedQRData = { ...customisedQRDocSnap.data(), id: customisedQRDocSnap.data().id };
                 setCustomisedQRData(customisedQRData)
             }
         } catch (error) {
@@ -465,6 +465,10 @@ const MyCartForCustomisedQRModal = ({ cartItems, cartCount, cartTotal, fetchCart
             let localCart = JSON.parse(localStorage.getItem('cartItems') || '{}');
             delete localCart[vendorMobileNumber];
             localStorage.setItem('cartItems', JSON.stringify(localCart));
+            const storedOrders = localStorage.getItem('OrdersListFromCustomisedQR');
+            const ordersList = storedOrders ? JSON.parse(storedOrders) : [];
+            ordersList.push(orderDocRef.id);
+            localStorage.setItem('OrdersListFromCustomisedQR', JSON.stringify(ordersList));
             setCartItemsForCustomisedQR({})
 
             setOrderComment('')

@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, Linking, TextInput, Image, FlatList, Dimensions, ScrollView, Modal } from 'react-native'
+import { View, Text, TouchableOpacity, Linking, TextInput, Image, FlatList, Dimensions, ScrollView, Modal, Button } from 'react-native'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import Header from '../components/Header';
@@ -16,6 +16,8 @@ import MyVendorsListModal from '../components/MyVendorsListModal';
 import BouncyCheckbox from "react-native-bouncy-checkbox";
 import { RatingStars } from '../components/RatingStars';
 import MyCartForCustomisedQRModal from '../components/MyCartForCustomisedQRModal'
+import MyOrdersForCustomisedQRModal from '../components/MyOrdersForCustomisedQRModal';
+import QRScannerModal from '../components/QRScannerModal'
 
 const Vendors = () => {
   const { customerMobileNumber, fetchMyVendors, setCustomerMobileNumber, fetchVendorOffers } = useAuth()
@@ -51,6 +53,40 @@ const Vendors = () => {
   const [ratingComment, setRatingComment] = useState('')
   const [isCartModalVisible, setIsCartModalVisible] = useState(false)
   const [toShowSplashScreen, setToShowSplashScreen] = useState(false)
+  const [isMyOrdersModalVisible, setIsMyOrdersModalVisible] = useState(false)
+  const [showScanner, setShowScanner] = useState(false);
+  const [qrStatus, setQrStatus] = useState(null);
+  const ordersList = JSON.parse(localStorage.getItem('OrdersListFromCustomisedQR') || '[]');
+  const cartItemsExist =
+    cartItemsForCustomisedQR[vendorMobileNumber] &&
+    Object.keys(cartItemsForCustomisedQR[vendorMobileNumber]).length > 0;
+  const shouldShowMyOrders = fromCustomisedQR && ordersList.length !== 0;
+
+
+  const handleScanSuccess = (data) => {
+    Linking.openURL(data)
+    setShowScanner(false);
+  };
+
+  useEffect(() => {
+    if (fromCustomisedQR) {
+      const checkQRCode = async () => {
+        if (params.QR) {
+          const vendorQRCodeRef = doc(db, 'users', vendorMobileNumber, 'myQRs', decryptData(params.QR));
+          const vendorQRCodeDocSnap = await getDoc(vendorQRCodeRef);
+          if (!vendorQRCodeDocSnap.exists()) {
+            setQrStatus("invalid");
+          } else {
+            setQrStatus("valid");
+          }
+        } else {
+          setQrStatus("expired");
+        }
+      };
+
+      checkQRCode();
+    }
+  }, [fromCustomisedQR, params.QR, vendorMobileNumber]);
 
   useEffect(() => {
     if (fromCustomisedQR) {
@@ -76,7 +112,6 @@ const Vendors = () => {
     if (fromCustomisedQR) {
       setToShowSplashScreen(true)
       const timer = setTimeout(() => {
-        console.log('first');
         setToShowSplashScreen(false);
       }, 2000);
 
@@ -676,6 +711,42 @@ const Vendors = () => {
     )
   }
 
+  if (fromCustomisedQR) {
+    if (qrStatus === 'invalid' || qrStatus === 'expired') {
+      return (
+        <Modal animationType='slide' transparent={true} visible={true} >
+          <View className='flex-1 bg-white'>
+            <View className='w-full self-center bg-white rounded-b-[10px] border border-[#ccc] px-[10px]' >
+              {fromCustomisedQR && (
+                <>
+                  <TouchableOpacity onPress={() => router.push('/Login')} className='flex-row items-center justify-center gap-[10px] outline-transparent' >
+                    <Image style={{ height: 40, width: 40 }} source={require('../../assets/images/iconRoundImage.png')} />
+                    <Text className='font-bold text-primary' >Explore more with unoshops.com</Text>
+                  </TouchableOpacity>
+                  <View className='border-b border-[#ccc]' />
+                </>
+              )}
+              <View className='p-[10px] w-full flex-row items-center justify-between' >
+                <Text className='text-center text-[16px] text-primaryGreen font-bold flex-1 border-r'>{vendorFullData?.businessName}</Text>
+                <TouchableOpacity className='px-[10px]' onPress={() => Linking.openURL(`tel:${vendorMobileNumber}`)} ><Text className='text-primary text-center' >Call 📞</Text></TouchableOpacity>
+              </View>
+            </View>
+            <Text className='mt-[100px] font-bold text-[25px] text-primaryRed text-center' >QR Expired</Text>
+
+            <View className='mt-[50px]' >
+              <TouchableOpacity className='p-[10px] w-[50%] rounded-[5px] bg-primary self-center' onPress={() => setShowScanner(true)} ><Text className='font-bold text-center text-white' >Scan New QR</Text></TouchableOpacity>
+              <QRScannerModal
+                visible={showScanner}
+                onScanSuccess={handleScanSuccess}
+                onClose={() => setShowScanner(false)}
+              />
+            </View>
+          </View>
+        </Modal>
+      )
+    }
+  }
+
   return (
     <View className='flex-1 gap-[1px]'>
       {isOrderCommentModalVisible &&
@@ -875,26 +946,32 @@ const Vendors = () => {
 
       </ScrollView>
 
-      {/* {!isSearchBarVisible && (
-        <TouchableOpacity
-          className="absolute bottom-[5px] z-[10] left-[1px] p-[10px] items-center justify-center rounded-r-[10px] bg-wheat"
-          onPress={() => router.push('/MyCart')}
-        >
-          {cartCount > 0 && <Text className='absolute top-[5px] right-[5px] rounded-full bg-black z-20 p-[2px] text-white' >{cartCount}</Text>}
-          <Image style={{ height: 30, width: 30 }} source={require('../../assets/images/myCartImage.png')} />
-          {cartTotal > 0 && <Text className='font-bold text-[12px]' >₹{cartTotal}</Text>}
-        </TouchableOpacity>
-      )} */}
-
+      {/* ---- Search Icon ----*/}
       {!isSearchBarVisible && (
         <TouchableOpacity
-          className={`absolute z-[10] bottom-[5px] right-[0px] p-[10px] items-center justify-center rounded-l-[10px] bg-primary`}
+          className={`absolute z-[10] bottom-[5px] right-[0px] ${cartItemsForCustomisedQR[vendorMobileNumber] && Object.keys(cartItemsForCustomisedQR[vendorMobileNumber]).length === 0 ? '' : 'py-[13px]'} p-[10px] items-center justify-center rounded-l-[5px] bg-primary`}
           onPress={() => setIsSearchBarVisible(true)}
         >
           <Text className="text-[20px]">🔍</Text>
         </TouchableOpacity>
       )}
 
+      {/* ---- My orders ----*/}
+      {shouldShowMyOrders && (
+        <TouchableOpacity
+          className={`absolute z-[10] p-[10px] items-center justify-center rounded-[5px] bg-primaryGreen`}
+          style={{
+            bottom: cartItemsExist ? 70 : 5,
+            right: cartItemsExist ? 0 : undefined,
+            left: cartItemsExist ? undefined : 0,
+          }}
+          onPress={() => setIsMyOrdersModalVisible(true)}
+        >
+          <Text className="text-[20px] text-white">My Orders</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* ---- Search Bar ----*/}
       {isSearchBarVisible && <View className='max-w-[96%] justify-center items-center flex-row self-center fixed bottom-[5px]' >
         {fromCustomisedQR && cartItemsForCustomisedQR[vendorMobileNumber] && Object.keys(cartItemsForCustomisedQR[vendorMobileNumber]).length > 0 && <TouchableOpacity className='w-fit bg-primaryGreen p-[10px] rounded-[10px] mr-[5px]' ><Text className='text-white text-center font-bold text-[14px]' >Confirm Order</Text></TouchableOpacity>}
         <TextInput
@@ -906,12 +983,13 @@ const Vendors = () => {
         <TouchableOpacity onPress={() => { setIsSearchBarVisible(false); setSearchQuery('') }}><Image style={{ height: 50, width: 60 }} className='p-[10px] bg-primaryRed rounded-r-full' source={require('../../assets/images/crossImage.png')} /></TouchableOpacity>
       </View>}
 
-      {!isSearchBarVisible && fromCustomisedQR && cartItemsForCustomisedQR[vendorMobileNumber] && Object.keys(cartItemsForCustomisedQR[vendorMobileNumber]).length > 0 &&
+      {/* ---- Confirm Order Button ----*/}
+      {!isSearchBarVisible && fromCustomisedQR && cartItemsForCustomisedQR[vendorMobileNumber] && Object.keys(cartItemsForCustomisedQR[vendorMobileNumber]).length > 0 && (
         <TouchableOpacity onPress={() => setIsCartModalVisible(true)} className='p-[10px] my-[5px] bg-primary rounded-[5px] w-[85%] left-[10px]' >
           <Text className='text-white text-[18px] text-center items-center justify-center'>Confirm Order <Text className='h-[30px] w-[50px] rounded-full items-center justify-center bg-white text-black text-[13px] p-[2px]' >{Object.values(cartItemsForCustomisedQR[vendorMobileNumber]).reduce((total, item) => total + item.quantity, 0)}</Text></Text>
           <Text className='text-white text-[12px] text-center'>Total: ₹{Object.values(cartItemsForCustomisedQR[vendorMobileNumber]).reduce((total, item) => total + (item.price * item.quantity), 0)}</Text>
         </TouchableOpacity>
-      }
+      )}
 
       <MyVendorsListModal vendorMobileNumber={vendorMobileNumber} isMyVendorsListModalVisible={isMyVendorsListModalVisible} setIsMyVendorsListModalVisible={setIsMyVendorsListModalVisible} setIsRemoveVendorFromMyVendorsListConfirmationModalVisible={setIsRemoveVendorFromMyVendorsListConfirmationModalVisible} setVendorMobileNumberToRemoveFromMyVendorsList={setVendorMobileNumberToRemoveFromMyVendorsList} />
 
@@ -932,6 +1010,20 @@ const Vendors = () => {
                 setIsCartModalVisible={setIsCartModalVisible}
                 customisedQRId={customisedQRId}>
               </MyCartForCustomisedQRModal>
+            </ScrollView>
+          </View>
+        </Modal>
+      )}
+
+      {isMyOrdersModalVisible && (
+        <Modal animationType='slide' transparent={true} visible={isMyOrdersModalVisible} >
+          <View className='flex-1 bg-[#00000060] items-center justify-center p-[10px]' >
+            <ScrollView stickyHeaderIndices={[0]} className='bg-white h-full w-full rounded-[10px] border-[5px]' >
+              <TouchableOpacity onPress={() => setIsMyOrdersModalVisible(false)} className='w-full bg-white mb-[5px] items-center border-b-[5px] border-primary rounded-[10px] p-[10px]' >
+                <Image style={{ height: 30, width: 30 }} className='absolute left-[5px] top-[5px]' source={require('../../assets/images/arrowLeftImage.png')} />
+                <Text className='text-[18px] font-bold text-center flex-1 text-primary' >My Orders</Text>
+              </TouchableOpacity>
+              <MyOrdersForCustomisedQRModal />
             </ScrollView>
           </View>
         </Modal>
