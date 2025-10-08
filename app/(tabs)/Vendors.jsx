@@ -61,6 +61,27 @@ const Vendors = () => {
     cartItemsForCustomisedQR[vendorMobileNumber] &&
     Object.keys(cartItemsForCustomisedQR[vendorMobileNumber]).length > 0;
   const shouldShowMyOrders = fromCustomisedQR && ordersList.length !== 0;
+  const [categories, setCategories] = useState([]);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, 'users', vendorMobileNumber, 'categories'));
+        const cats = [];
+        querySnapshot.forEach((doc) => {
+          cats.push({ id: doc.id, ...doc.data() });
+        });
+        const sortedCats = cats.sort((a, b) => (a.position || 0) - (b.position || 0));
+        setCategories(sortedCats);
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+
+    if (vendorMobileNumber) {
+      fetchCategories();
+    }
+  }, [vendorMobileNumber]);
 
 
   const handleScanSuccess = (data) => {
@@ -879,7 +900,7 @@ const Vendors = () => {
           )}
         </View>}
 
-        <FlashList
+        {/* <FlashList
           data={numberedItems}
           renderItem={({ item }) => {
             // const isItemHidden = item?.hidden ?? false;
@@ -942,7 +963,156 @@ const Vendors = () => {
             return null;
           }}
           keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
-        />
+        /> */}
+
+        {filteredItemsList.length > 0 && (
+          (() => {
+            // Group items by category
+            const groupedByCategory = filteredItemsList.reduce((acc, item) => {
+              const categoryId = item.categoryId || 'Uncategorized';
+              if (!acc[categoryId]) {
+                acc[categoryId] = [];
+              }
+              acc[categoryId].push(item);
+              return acc;
+            }, {});
+
+            // Convert to array for rendering
+            const categorySections = Object.entries(groupedByCategory).map(([categoryId, items]) => ({
+              categoryId,
+              categoryName: categories.find((category) => category.id === categoryId)?.categoryName || 'Uncategorized',
+              items
+            }));
+
+            const categorizedSections = categorySections.filter(s => s.categoryId !== 'Uncategorized');
+            const uncategorizedSection = categorySections.find(s => s.categoryId === 'Uncategorized');
+
+            // Sort only categorized sections by position
+            const sortedCategorizedSections = categorizedSections.sort((a, b) => {
+              const posA = categories.find(cat => cat.id === a.categoryId)?.position || 0;
+              const posB = categories.find(cat => cat.id === b.categoryId)?.position || 0;
+              return posA - posB;
+            });
+
+            // Combine: sorted categorized + uncategorized at end
+            const sortedCategorySections = [...sortedCategorizedSections, ...(uncategorizedSection ? [uncategorizedSection] : [])];
+
+            // Compute global numbering by processing each sorted category section sequentially
+            const numberedItems = [];
+            let globalCounter = filteredItemsList.length;  // Start from total length for descending
+
+            sortedCategorySections.forEach(section => {
+              const sectionSortedItems = section.items.sort((a, b) => (a.position || 0) - (b.position || 0));
+              sectionSortedItems.forEach((item, sectionIndex) => {
+                const sectionNameGroup = sectionSortedItems.filter(
+                  (itm) => itm.name.toLowerCase() === item.name.toLowerCase()
+                );
+                const firstSectionIndexOfGroup = sectionSortedItems.findIndex(
+                  (i) => i.name.toLowerCase() === item.name.toLowerCase()
+                );
+
+                if (sectionNameGroup.length > 1 && firstSectionIndexOfGroup === sectionIndex) {
+                  const sortedGroupForNumbering = sectionNameGroup.sort((a, b) => (a.groupPosition || 0) - (b.groupPosition || 0));
+                  sortedGroupForNumbering.forEach((gItem) => {
+                    numberedItems.push({ ...gItem, itemNumber: globalCounter });
+                    globalCounter--;
+                  });
+                } else if (sectionNameGroup.length === 1) {
+                  numberedItems.push({ ...item, itemNumber: globalCounter });
+                  globalCounter--;
+                }
+              });
+            });
+
+            const cartSource = fromCustomisedQR ? cartItemsForCustomisedQR[vendorMobileNumber] || {} : cartItems;
+
+            return (
+              <View>
+                {sortedCategorySections.map((section) => (
+                  <View key={section.categoryId} className="mb-[2px]">
+                    {/* Category Header */}
+                    {section.categoryName !== 'Uncategorized' && (
+                      <View className="bg-wheat p-[10px] rounded-t-[10px]">
+                        <Text className="text-black text-lg font-bold text-center">
+                          {section.categoryName}
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Render all items in this category */}
+                    {section.items.sort((a, b) => (a.position || 0) - (b.position || 0)).map((item) => {
+                      const isItemHidden = item?.hidden ?? false;
+                      if (isItemHidden) return null;
+
+                      const nameGroup = section.items.filter((itm) =>
+                        itm.name.toLowerCase() === item.name.toLowerCase() && itm.hidden !== true
+                      );
+                      const sortedNameGroup = nameGroup.sort((a, b) => (a.groupPosition || 0) - (b.groupPosition || 0));
+                      const isItemsMultiple = nameGroup.length > 1;
+                      const firstIndexOfGroup = section.items.findIndex((i) => i.name.toLowerCase() === item.name.toLowerCase());
+
+                      // Only render the first item of each name group to avoid duplicates
+                      if (isItemsMultiple && section.items[firstIndexOfGroup].id === item.id) {
+                        return (
+                          <View key={item.id} className={`bg-[white] rounded-b-[10px] gap-[3px] ${section.categoryName !== 'Uncategorized' ? 'border-l-[10px] border-wheat' : ''}`}>
+                            <Text className="text-base font-bold m-[5px] text-white text-center bg-primary rounded-[10px] p-[7px]">
+                              {item.name}
+                            </Text>
+
+                            <FlatList
+                              data={sortedNameGroup}
+                              keyExtractor={(itm) => itm.id}
+                              horizontal
+                              renderItem={({ item: groupedItem, index: groupedItemIndex }) => {
+                                const isGroupItemHidden = groupedItem?.hidden ?? false;
+                                if (isGroupItemHidden) return null;
+
+                                return (
+                                  <View className="mr-2">
+                                    <MultipleItemsCard
+                                      item={groupedItem}
+                                      innerIndex={sortedNameGroup.length - groupedItemIndex}
+                                      cartItem={cartSource[groupedItem.id] || null}
+                                      onAddToCart={handleAddToCartWithUpdate}
+                                      onIncrement={handleIncrementWithUpdate}
+                                      onDecrement={handleDecrementWithUpdate}
+                                    />
+                                  </View>
+                                );
+                              }}
+                            />
+                          </View>
+                        );
+                      }
+
+                      if (!isItemsMultiple) {
+                        return (
+                          <View key={item.id} className={`w-full bg-[white] rounded-b-[10px] gap-[3px] ${section.categoryName !== 'Uncategorized' ? 'border-l-[10px] border-wheat' : ''}`}>
+                            <ItemCard
+                              item={item}
+                              cartItem={cartSource[item.id] || null}
+                              onAddToCart={handleAddToCartWithUpdate}
+                              onIncrement={handleIncrementWithUpdate}
+                              onDecrement={handleDecrementWithUpdate}
+                            />
+                          </View>
+                        );
+                      }
+
+                      return null;
+                    })}
+                  </View>
+                ))}
+              </View>
+            );
+          })()
+        )}
+
+        {filteredItemsList.length === 0 && (
+          <View className="items-center justify-center mt-10">
+            <Text className='font-bold text-center text-[20px] text-red-500'>No Items Found</Text>
+          </View>
+        )}
 
       </ScrollView>
 
