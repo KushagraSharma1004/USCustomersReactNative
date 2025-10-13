@@ -461,6 +461,10 @@ const SignUp = () => {
     }
 
     const handleCompleteRegistration = async () => {
+        if (customerLocation.error) {
+            alert('Please enable location from settings.');
+            return
+        }
         try {
             setIsCommonLoaderVisible(true);
             const newErrors = {};
