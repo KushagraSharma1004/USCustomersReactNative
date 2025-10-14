@@ -1,13 +1,13 @@
-import { Stack } from "expo-router";
+import { Stack, usePathname, useRouter } from "expo-router";
 import { StatusBar } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import "./global.css"
 import { CartProvider } from "./context/CartContext";
 import { AddressSheetProvider } from "./context/AddressSheetContext";
 import BottomSheet, { BottomSheetBackdrop } from "@gorhom/bottom-sheet";
 import AddressSheet from "./components/AddressSheet";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export default function RootLayout() {
   const addressSheetRef = useRef(null)
@@ -39,6 +39,30 @@ export default function RootLayout() {
     setTimeout(() => setIsAddressSheetVisible(false), 300); // wait for close animation
   };
 
+  const ProtectedRoute = ({ children }) => {
+    const { customerMobileNumber } = useAuth();
+    const router = useRouter();
+    const pathname = usePathname();
+    const [isMounted, setIsMounted] = useState(false);
+  
+    useEffect(() => {
+      setIsMounted(true); // Mark component as mounted
+    }, []);
+  
+    useEffect(() => {
+      if (!isMounted) return; // Skip navigation until mounted
+  
+      const publicRoutes = ['/Login', '/index', '/SignUp', '/[...not-found]'];
+      if (!publicRoutes.includes(pathname)) {
+        if (!customerMobileNumber || customerMobileNumber.length !== 10) {
+          router.replace('/Login');
+        }
+      }
+    }, [customerMobileNumber, pathname, router, isMounted]);
+  
+    return children;
+  };
+
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <StatusBar
@@ -49,16 +73,19 @@ export default function RootLayout() {
       <AuthProvider>
         <CartProvider>
           <AddressSheetProvider openAddressSheet={openAddressSheet}>
-            <Stack>
-              <Stack.Screen name="Login" options={{ headerShown: false }} />
-              <Stack.Screen name="index" options={{ headerShown: false }} />
-              <Stack.Screen name="SignUp" options={{ headerShown: false }} />
-              <Stack.Screen name="ForgotPassword" options={{ headerShown: false }} />
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="Profile" options={{ headerShown: false }} />
-              <Stack.Screen name="MyReferrals" options={{ headerShown: false }} />
-              <Stack.Screen name="Settings" options={{ headerShown: false }} />
-            </Stack>
+            <ProtectedRoute>
+              <Stack>
+                <Stack.Screen name="Login" options={{ headerShown: false }} />
+                <Stack.Screen name="index" options={{ headerShown: false }} />
+                <Stack.Screen name="SignUp" options={{ headerShown: false }} />
+                <Stack.Screen name="ForgotPassword" options={{ headerShown: false }} />
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="Profile" options={{ headerShown: false }} />
+                <Stack.Screen name="MyReferrals" options={{ headerShown: false }} />
+                <Stack.Screen name="Settings" options={{ headerShown: false }} />
+                <Stack.Screen name="[...not-found]" options={{ headerShown: false }} />
+              </Stack>
+            </ProtectedRoute>
             {/* <BottomSheet
               ref={addressSheetRef}
               snapPoints={snapPointsForAddressSheet}
