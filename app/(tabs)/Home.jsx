@@ -119,8 +119,8 @@ const Home = () => {
   const router = useRouter()
   const [selectedCategoryId, setSelectedCategoryId] = useState(null)
   const [customerLocation, setCustomerLocation] = useState(null)
-  const [locationError, setLocationError] = useState(null)
-  const [distanceFilter, setDistanceFilter] = useState(null)
+  // const [locationError, setLocationError] = useState(null)
+  // const [distanceFilter, setDistanceFilter] = useState(null)
   const [loadingLocation, setLoadingLocation] = useState(true)
   const [searchQuery, setSearchQuery] = useState(''); // New state for search query
   const [isSearchBarVisible, setIsSearchBarVisible] = useState(false)
@@ -132,14 +132,10 @@ const Home = () => {
   const [addVendorInMyVendorsListMobileNumber, setAddVendorInMyVendorsListMobileNumber] = useState(null)
   const vendorCardRefs = useRef({});
   const [isCommonLoaderVisible, setIsCommonLoaderVisible] = useState(false)
-  const [selectedMode, setSelectedMode] = useState('Vendors')
+  const [selectedMode, setSelectedMode] = useState('Products')
   const [allProducts, setAllProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
-  const [currentBatch, setCurrentBatch] = useState(0);
-  const [batchSize, setBatchSize] = useState(5); // Vendors per batch
   const [hasMoreProducts, setHasMoreProducts] = useState(true);
-  const [isInitialLoad, setIsInitialLoad] = useState(false);
-  const vendorsRef = useRef([]);
   const [allProductsByVendor, setAllProductsByVendor] = useState({});
   const [currentRound, setCurrentRound] = useState(0);
   const [maxRounds, setMaxRounds] = useState(0);
@@ -193,25 +189,20 @@ const Home = () => {
     // 1. Search Filter (Only run if query exists)
     if (searchQuery) {
       products = products.filter(product =>
-        product.name?.toLowerCase().includes(lowercasedQuery) ||
-        product.businessName?.toLowerCase().includes(lowercasedQuery) ||
-        product.description?.toLowerCase().includes(lowercasedQuery)
+        product.name?.toLowerCase().includes(lowercasedQuery)
       );
     }
 
     // 2. Distance Filter (Only run if filter exists)
-    if (distanceFilter) {
-      products = products.filter(product => product.distance !== null && product.distance <= distanceFilter);
-    }
+    // if (distanceFilter) {
+    //   products = products.filter(product => product.distance !== null && product.distance <= distanceFilter);
+    // }
 
     // Products are already "meshed" and appended in a specific order in `loadNextRound`, so no further sorting is applied here.
     return products;
-  }, [allProducts, searchQuery, distanceFilter]);
-
-  // Filter by selected category (assume product.categoryId matches vendor categories)
-  // const filteredByCategoryProducts = selectedCategoryId
-  //   ? searchedProducts.filter(product => product.categoryId === selectedCategoryId)
-  //   : searchedProducts;
+  }, [allProducts, searchQuery, 
+    // distanceFilter
+  ]);
 
   useEffect(() => {
     // getCurrentLocation()
@@ -289,9 +280,9 @@ const Home = () => {
     }
 
     // 3. Distance Filter (Only run if filter is set)
-    if (distanceFilter) {
-      vendors = vendors.filter(vendor => vendor.distance !== null && vendor.distance <= distanceFilter);
-    }
+    // if (distanceFilter) {
+    //   vendors = vendors.filter(vendor => vendor.distance !== null && vendor.distance <= distanceFilter);
+    // }
 
     // 4. Sort vendors (Active first, then by distance, then by rating)
     return vendors.sort((a, b) => {
@@ -311,7 +302,9 @@ const Home = () => {
       // Tertiary sort: Rating count descending
       return (b.ratingCount || 0) - (a.ratingCount || 0)
     });
-  }, [vendorsWithDistanceAndAvailability, searchQuery, selectedCategoryId, distanceFilter]);
+  }, [vendorsWithDistanceAndAvailability, searchQuery, selectedCategoryId, 
+    // distanceFilter
+  ]);
 
   const fetchProductsForVendors = useCallback(async (vendors) => {
     if (vendors.length === 0) return;
@@ -431,14 +424,14 @@ const Home = () => {
     )
   }
 
-  if (locationError) {
-    return (
-      <View className="flex-1 justify-center items-center p-10">
-        <Text className="text-center text-red-600 mb-3">Error getting location: {locationError}</Text>
-        <Text className="text-center">Some features may not be available.</Text>
-      </View>
-    )
-  }
+  // if (locationError) {
+  //   return (
+  //     <View className="flex-1 justify-center items-center p-10">
+  //       <Text className="text-center text-red-600 mb-3">Error getting location: {locationError}</Text>
+  //       <Text className="text-center">Some features may not be available.</Text>
+  //     </View>
+  //   )
+  // }
 
   return (
     <View className="gap-[1px] flex-1">
