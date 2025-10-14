@@ -1078,7 +1078,7 @@ const Vendors = () => {
       )}
 
       {/* ---- Search Bar ----*/}
-      {isSearchBarVisible && <View className='max-w-[96%] justify-center items-center flex-row self-center fixed bottom-[5px]' >
+      {isSearchBarVisible && <View className={`max-w-[96%] justify-center items-center flex-row self-center fixed ${fromCustomisedQR ? 'bottom-[5px]' : 'bottom-[68px]'} z-50`} >
         {fromCustomisedQR && cartItemsForCustomisedQR[vendorMobileNumber] && Object.keys(cartItemsForCustomisedQR[vendorMobileNumber]).length > 0 && <TouchableOpacity className='w-fit bg-primaryGreen p-[10px] rounded-[10px] mr-[5px]' ><Text className='text-white text-center font-bold text-[14px]' >Confirm Order</Text></TouchableOpacity>}
         <TextInput
           className='flex-1 py-[12px] px-[15px] border-[#ccc] border rounded-l-full bg-white text-base text-gray-800 outline-none focus:outline-none focus:border-[#ccc] focus:bg-white'

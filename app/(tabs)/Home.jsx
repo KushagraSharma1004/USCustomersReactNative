@@ -475,7 +475,7 @@ const Home = () => {
       }
 
       {/* Categories horizontal scroll for selection */}
-      <View className="bg-white w-[98%] self-center justify-between rounded-[5px] flex-row">
+      {selectedMode !== 'Products' && <View className="bg-white w-[98%] self-center justify-between rounded-[5px] flex-row">
         <FlatList
           horizontal
           data={categoriesThoseHaveVendor}
@@ -504,16 +504,16 @@ const Home = () => {
           }}
         />
         {selectedCategoryId && <TouchableOpacity onPress={() => setSelectedCategoryId(null)} className='rounded-l-[20px] bg-primary items-center justify-center p-[5px]' ><Text className='text-white text-[12px]' >Show</Text><Text className='text-white text-[12px]' >All</Text></TouchableOpacity>}
-      </View>
+      </View>}
 
-      <View className='bg-white w-[98%] self-center justify-between rounded-[5px] flex-row' >
+      {selectedMode !== 'Products' && <View className='bg-white w-[98%] self-center justify-between rounded-[5px] flex-row' >
         <TouchableOpacity onPress={() => setSelectedMode('Vendors')} className={`flex-1 ${selectedMode === 'Vendors' ? 'bg-primary' : 'border border-[#ccc]'} p-[10px] rounded-l-[5px]`} >
           <Text className={`${selectedMode === 'Vendors' ? 'text-white' : 'text-black'} text-center text-[16px] font-bold`} >Vendors</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => setSelectedMode('Products')} className={`flex-1 ${selectedMode === 'Products' ? 'bg-primary' : 'border border-[#ccc]'} p-[10px] rounded-r-[5px]`} >
           <Text className={`${selectedMode === 'Products' ? 'text-white' : 'text-black'} text-center text-[16px] font-bold`} >Products</Text>
         </TouchableOpacity>
-      </View>
+      </View>}
 
       {/* Vendors FlatList */}
       {selectedMode === 'Vendors' && (
@@ -741,6 +741,48 @@ const Home = () => {
               // Use margin/padding for spacing around the grid
               contentContainerStyle={{ paddingHorizontal: 2, paddingBottom: 50 }}
               showsVerticalScrollIndicator
+              ListHeaderComponent={() => (
+                <>
+                  <View className="bg-white w-[98%] self-center justify-between rounded-[5px] flex-row mb-[5px]">
+                    <FlatList
+                      horizontal
+                      data={categoriesThoseHaveVendor}
+                      keyExtractor={(item) => item.id}
+                      showsHorizontalScrollIndicator={false}
+                      renderItem={({ item }) => {
+                        const isSelected = item.id === selectedCategoryId
+                        return (
+                          <TouchableOpacity
+                            onPress={() => setSelectedCategoryId(isSelected ? null : item.id)}
+                            className={`p-[3px] min-w-[90px] border justify-center items-center rounded-[7px] mr-[3px] ${isSelected ? 'border-primary bg-primaryLight' : 'border-gray-300'}`}
+                          >
+                            <Image
+                              resizeMode="stretch"
+                              className="rounded-[5px]"
+                              style={{ height: 70, width: 80 }}
+                              source={
+                                item.categoryImage
+                                  ? { uri: item.categoryImage }
+                                  : require('../../assets/images/placeholderImage.png')
+                              }
+                            />
+                            <Text className="text-[10px]">{item.categoryName}</Text>
+                          </TouchableOpacity>
+                        )
+                      }}
+                    />
+                    {selectedCategoryId && <TouchableOpacity onPress={() => setSelectedCategoryId(null)} className='rounded-l-[20px] bg-primary items-center justify-center p-[5px]' ><Text className='text-white text-[12px]' >Show</Text><Text className='text-white text-[12px]' >All</Text></TouchableOpacity>}
+                  </View>
+                  <View className='bg-white w-[98%] self-center justify-between rounded-[5px] flex-row' >
+                    <TouchableOpacity onPress={() => setSelectedMode('Vendors')} className={`flex-1 ${selectedMode === 'Vendors' ? 'bg-primary' : 'border border-[#ccc]'} p-[10px] rounded-l-[5px]`} >
+                      <Text className={`${selectedMode === 'Vendors' ? 'text-white' : 'text-black'} text-center text-[16px] font-bold`} >Vendors</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setSelectedMode('Products')} className={`flex-1 ${selectedMode === 'Products' ? 'bg-primary' : 'border border-[#ccc]'} p-[10px] rounded-r-[5px]`} >
+                      <Text className={`${selectedMode === 'Products' ? 'text-white' : 'text-black'} text-center text-[16px] font-bold`} >Products</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   onPress={() => {
