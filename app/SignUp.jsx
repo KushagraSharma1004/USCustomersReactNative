@@ -462,7 +462,7 @@ const SignUp = () => {
 
     const handleCompleteRegistration = async () => {
         if (customerLocation.error) {
-            alert('Please enable location from settings.');
+            alert('Please enable location from\nBrowser Menu > Site Settings > Location > Blocked > Select https://customers.unoshops.com > Allow');
             return
         }
         try {

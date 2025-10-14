@@ -186,31 +186,33 @@ const Home = () => {
     }
   }
 
-  // Search filter for products (reuse searchQuery)
-  const searchedProducts = useMemo(() => {
-    if (!searchQuery) return allProducts;
+  const sortedProducts = useMemo(() => {
+    let products = allProducts;
     const lowercasedQuery = searchQuery.toLowerCase();
-    return allProducts.filter(product =>
-      product.name?.toLowerCase().includes(lowercasedQuery) ||
-      product.businessName?.toLowerCase().includes(lowercasedQuery) ||
-      product.description?.toLowerCase().includes(lowercasedQuery) // Add more fields as needed
-    );
-  }, [allProducts, searchQuery]);
+
+    // 1. Search Filter (Only run if query exists)
+    if (searchQuery) {
+      products = products.filter(product =>
+        product.name?.toLowerCase().includes(lowercasedQuery) ||
+        product.businessName?.toLowerCase().includes(lowercasedQuery) ||
+        product.description?.toLowerCase().includes(lowercasedQuery)
+      );
+    }
+
+    // 2. Distance Filter (Only run if filter exists)
+    if (distanceFilter) {
+      products = products.filter(product => product.distance !== null && product.distance <= distanceFilter);
+    }
+
+    // Products are already "meshed" and appended in a specific order in `loadNextRound`, so no further sorting is applied here.
+    return products;
+  }, [allProducts, searchQuery, distanceFilter]);
 
   // Filter by selected category (assume product.categoryId matches vendor categories)
   // const filteredByCategoryProducts = selectedCategoryId
   //   ? searchedProducts.filter(product => product.categoryId === selectedCategoryId)
   //   : searchedProducts;
 
-  // Filter by distance (reuse distanceFilter)
-  const filteredByDistanceProducts = distanceFilter
-    ? searchedProducts.filter(product => product.distance !== null && product.distance <= distanceFilter)
-    : searchedProducts;
-
-  const sortedProducts = useMemo(() =>
-    filteredByDistanceProducts,
-    [filteredByDistanceProducts]
-  );
   useEffect(() => {
     // getCurrentLocation()
     //   .then((location) => {
@@ -261,51 +263,55 @@ const Home = () => {
     }), [allVendors, customerLocation]
   );
 
-  // Apply search filter first
-  const searchedVendors = useMemo(() => {
-    if (!searchQuery) {
-      return vendorsWithDistanceAndAvailability;
-    }
-    const lowercasedQuery = searchQuery.toLowerCase();
-    return vendorsWithDistanceAndAvailability.filter(vendor => {
-      // Search in businessName, vendorName, category, and vendorAddress fields
-      // You can expand this to other fields as needed
-      return (
-        vendor.businessName?.toLowerCase().includes(lowercasedQuery) ||
-        vendor.vendorName?.toLowerCase().includes(lowercasedQuery) ||
-        vendor.category?.toLowerCase().includes(lowercasedQuery) ||
-        Object.values(vendor.vendorAddress || {})
-          .some(field => typeof field === 'string' && field.toLowerCase().includes(lowercasedQuery))
-      );
-    });
-  }, [vendorsWithDistanceAndAvailability, searchQuery]);
-
-  // Filter by selected category if any
-  const filteredByCategory = selectedCategoryId
-    ? searchedVendors.filter(vendor => vendor.category === selectedCategoryId)
-    : searchedVendors;
-
-  // Filter by distance filter if set
-  const filteredByDistance = distanceFilter
-    ? filteredByCategory.filter(vendor => vendor.distance !== null && vendor.distance <= distanceFilter)
-    : filteredByCategory;
-
   // Sort vendors: active first, then by distance ascending (if available), then by ratingCount descending
-  const sortedVendors = useMemo(() =>
-    filteredByDistance.slice().sort((a, b) => {
+  const sortedVendors = useMemo(() => {
+    let vendors = vendorsWithDistanceAndAvailability;
+    const lowercasedQuery = searchQuery.toLowerCase();
+
+    // 1. Search Filter (Only run if query exists)
+    if (searchQuery) {
+      vendors = vendors.filter(vendor => {
+        return (
+          vendor.businessName?.toLowerCase().includes(lowercasedQuery) ||
+          vendor.vendorName?.toLowerCase().includes(lowercasedQuery) ||
+          vendor.category?.toLowerCase().includes(lowercasedQuery) ||
+          // Optimize Object.values() creation
+          (vendor.vendorAddress && Object.keys(vendor.vendorAddress).some(key =>
+            typeof vendor.vendorAddress[key] === 'string' && vendor.vendorAddress[key].toLowerCase().includes(lowercasedQuery)
+          ))
+        );
+      });
+    }
+
+    // 2. Category Filter (Only run if filter is set)
+    if (selectedCategoryId) {
+      vendors = vendors.filter(vendor => vendor.category === selectedCategoryId);
+    }
+
+    // 3. Distance Filter (Only run if filter is set)
+    if (distanceFilter) {
+      vendors = vendors.filter(vendor => vendor.distance !== null && vendor.distance <= distanceFilter);
+    }
+
+    // 4. Sort vendors (Active first, then by distance, then by rating)
+    return vendors.sort((a, b) => {
+      // Primary sort: Active status
       if (a.isVendorActive && !b.isVendorActive) return -1
       if (!a.isVendorActive && b.isVendorActive) return 1
+
+      // Secondary sort: Distance ascending
       if (a.distance !== null && b.distance !== null) {
-        if (a.distance < b.distance) return -1
-        if (a.distance > b.distance) return 1
+        return a.distance - b.distance;
       } else if (a.distance !== null) {
-        return -1
+        return -1; // a is closer (known distance)
       } else if (b.distance !== null) {
-        return 1
+        return 1; // b is closer (known distance)
       }
+
+      // Tertiary sort: Rating count descending
       return (b.ratingCount || 0) - (a.ratingCount || 0)
-    }), [filteredByDistance]
-  );
+    });
+  }, [vendorsWithDistanceAndAvailability, searchQuery, selectedCategoryId, distanceFilter]);
 
   const fetchProductsForVendors = useCallback(async (vendors) => {
     if (vendors.length === 0) return;
@@ -371,39 +377,42 @@ const Home = () => {
     });
   }, [currentRound, maxRounds, allProductsByVendor]);
 
+  // --- OPTIMIZATION: Stabilize active vendor list for product fetching ---
+  const activeVendorsForProducts = useMemo(() => {
+    let candidateVendors = vendorsWithDistanceAndAvailability
+      .filter(v => v.isVendorActive && !v.disabled);
+
+    // Apply category filter
+    if (selectedCategoryId) {
+      candidateVendors = candidateVendors.filter(v => v.category === selectedCategoryId);
+    }
+
+    // Sort active vendors for consistent product meshing
+    return candidateVendors
+      .slice()
+      .sort((a, b) => {
+        // Same sorting logic as sortedVendors
+        if (a.distance !== null && b.distance !== null) {
+          return a.distance - b.distance;
+        } else if (a.distance !== null) {
+          return -1;
+        } else if (b.distance !== null) {
+          return 1;
+        }
+        return (b.ratingCount || 0) - (a.ratingCount || 0);
+      });
+  }, [vendorsWithDistanceAndAvailability, selectedCategoryId]);
+
+  // --- Product Fetching Logic ---
   useEffect(() => {
     if (selectedMode === 'Products') {
+      // Reset state for new fetch
       setCurrentRound(0);
       setAllProducts([]);
       setHasMoreProducts(true);
 
-      // Compute sorted active vendors for consistent meshing order (same sort as vendors section), filtered by category if selected
-      let candidateVendors = vendorsWithDistanceAndAvailability
-        .filter(v => v.isVendorActive && !v.disabled);
-
-      // Apply category filter at vendor level (since products inherit vendor's category)
-      if (selectedCategoryId) {
-        candidateVendors = candidateVendors.filter(v => v.category === selectedCategoryId);
-      }
-
-      const activeVendors = candidateVendors
-        .slice()
-        .sort((a, b) => {
-          if (a.isVendorActive && !b.isVendorActive) return -1;
-          if (!a.isVendorActive && b.isVendorActive) return 1;
-          if (a.distance !== null && b.distance !== null) {
-            if (a.distance < b.distance) return -1;
-            if (a.distance > b.distance) return 1;
-          } else if (a.distance !== null) {
-            return -1;
-          } else if (b.distance !== null) {
-            return 1;
-          }
-          return (b.ratingCount || 0) - (a.ratingCount || 0);
-        });
-
-      snapshotVendors.current = activeVendors;
-      fetchProductsForVendors(activeVendors);
+      snapshotVendors.current = activeVendorsForProducts;
+      fetchProductsForVendors(activeVendorsForProducts);
     } else {
       setAllProductsByVendor({});
       setCurrentRound(0);
@@ -411,7 +420,7 @@ const Home = () => {
       setAllProducts([]);
       setHasMoreProducts(false);
     }
-  }, [selectedMode, vendorsWithDistanceAndAvailability, selectedCategoryId]); // Added selectedCategoryId to deps for re-fetch on category change
+  }, [selectedMode, activeVendorsForProducts]); // Use stabilized dependency array
 
   if (loadingLocation) {
     return (
@@ -717,17 +726,20 @@ const Home = () => {
       )}
 
       {selectedMode === 'Products' && (
-        <View className={`${selectedCategoryId ? 'bg-primaryLight' : 'bg-white'} w-[98%] self-center rounded-[5px] flex-1`}>
-          {loadingProducts ? (
+        <View className={`${selectedCategoryId ? 'bg-primaryLight' : 'bg-white'} w-full flex-1 p-1`}>
+          {loadingProducts && !sortedProducts.length ? (
             <View className="flex-1 justify-center items-center">
               <ActivityIndicator size="large" color="#E48108" />
               <Text>Loading products...</Text>
             </View>
           ) : (
             <FlatList
-              data={sortedProducts}
-              keyExtractor={(item) => `${item.id}-${item.vendorMobileNumber}-${new Date()}`}
-              contentContainerStyle={{ paddingBottom: 50, width: '98%', alignSelf: 'center', paddingTop: 5 }}
+              data={sortedProducts.filter((item) => item.images?.[0])}
+              // --- Performance: Use numColumns for better grid performance and responsiveness ---
+              numColumns={3}
+              keyExtractor={(item) => `${item.id}-${item.vendorMobileNumber}`}
+              // Use margin/padding for spacing around the grid
+              contentContainerStyle={{ paddingHorizontal: 2, paddingBottom: 50 }}
               showsVerticalScrollIndicator
               renderItem={({ item }) => (
                 <TouchableOpacity
@@ -745,25 +757,32 @@ const Home = () => {
                       return
                     }
                   }}
-                  className="p-[10px] border-b border-primary rounded-[10px] mb-[5px] bg-white flex-row gap-[10px]"
+                  // --- Sleek Visuals & Responsiveness: max-w-[48%] for 2 items per row, plus margin for spacing ---
+                  className="flex-1 m-[2px] border border-gray-100 rounded-lg bg-white shadow-md min-h-[230px]"
                 >
+                  {/* --- Style Prop & Aspect Ratio for Image --- */}
                   <Image
                     source={item.images?.[0] ? { uri: item.images[0] } : require('../../assets/images/placeholderImage.png')}
-                    className="w-[100px] h-[100px] rounded-lg"
-                    style={{ height: 100, width: 100 }}
+                    className="w-full rounded-lg mb-2"
+                    // Using aspect-square and full width for a sleek, responsive image container
+                    style={{ aspectRatio: 1, width: '100%' }}
                     resizeMode="cover"
                   />
-                  <View className="flex-1 justify-between">
-                    <Text className="font-bold text-[16px]">{item.name}</Text>
-                    <View className='gap-[10px] flex-row' >
-                      <Text className="text-[14px] text-primaryRed line-through">₹{item.prices?.[0]?.mrp || 'N/A'}</Text>
-                      <Text className="text-[14px] text-primaryGreen font-bold">₹{item.prices?.[0]?.sellingPrice || 'N/A'} / {item.prices?.[0]?.measurement || ''}</Text>
-                      </View>
-                    <Text className="text-[12px] text-gray-600">Vendor: <Text className='font-bold' >{item.businessName}</Text></Text>
-                    {item.distance !== null && (
-                      <Text className="text-[12px] text-gray-600">Distance: {item.distance.toFixed(2)} km</Text>
-                    )}
-                    {item.available === false && <Text className="text-[12px] text-red-500">Home delivery not available in your area.</Text>}
+
+                  <View className="flex-1 justify-between gap-1 px-[7px] pb-[7px]">
+                    {/* Ensure Text doesn't overflow visually */}
+                    <Text className="font-semibold" numberOfLines={2}>{item.name}</Text>
+
+                    <View className='flex-col'>
+                      {/* Price Display with improved layout */}
+                      <Text className="text-xs text-gray-400 line-through">₹{item.prices?.[0]?.mrp || 'N/A'}</Text>
+                      <Text className="text-[12px] text-green-600 font-bold">
+                        ₹{item.prices?.[0]?.sellingPrice || 'N/A'} / {item.prices?.[0]?.measurement || ''}
+                      </Text>
+                    </View>
+
+                    {/* Vendor Availability */}
+                    {item.available === false && <Text className="text-xs text-primary">Takeaway Only</Text>}
                   </View>
                 </TouchableOpacity>
               )}
@@ -778,8 +797,8 @@ const Home = () => {
               ListFooterComponent={() => loadingProducts && hasMoreProducts ? <ActivityIndicator size="small" color="#E48108" style={{ marginVertical: 10 }} /> : null}
               ListEmptyComponent={() => {
                 return (
-                  <View className='p-[30px] w-full' >
-                    <Text className='font-bold text-[30px] text-center' >No Items found. Try again later</Text>
+                  <View className='p-8 w-full' >
+                    <Text className='font-bold text-xl text-center' >No Items found. Try again later</Text>
                   </View>
                 )
               }}
