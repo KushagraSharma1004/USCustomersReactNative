@@ -83,7 +83,6 @@ const Vendors = () => {
     }
   }, [vendorMobileNumber]);
 
-
   const handleScanSuccess = (data) => {
     Linking.openURL(data)
     setShowScanner(false);
@@ -484,6 +483,7 @@ const Vendors = () => {
   let counter = filteredItemsList.length;
 
   filteredItemsList.forEach((item, index) => {
+
     const nameGroup = filteredItemsList.filter(
       (itm) => itm.name.toLowerCase() === item.name.toLowerCase()
     );
@@ -966,7 +966,7 @@ const Vendors = () => {
                 {sortedCategorySections.map((section) => (
                   <View key={section.categoryId} className="mb-[2px]">
                     {/* Category Header */}
-                    {section.categoryName !== 'Uncategorized' && (
+                    {section.categoryName !== 'Uncategorized' && section.items.filter((itm) => !itm.hidden).length !== 0 && (
                       <View className="bg-wheat p-[10px] rounded-t-[10px]">
                         <Text className="text-black text-lg font-bold text-center">
                           {section.categoryName}
@@ -976,12 +976,11 @@ const Vendors = () => {
 
                     {/* Render all items in this category */}
                     {section.items.sort((a, b) => (a.position || 0) - (b.position || 0)).map((item) => {
-                      const isItemHidden = item?.hidden ?? false;
-                      if (isItemHidden) return null;
 
                       const nameGroup = section.items.filter((itm) =>
                         itm.name.toLowerCase() === item.name.toLowerCase() && itm.hidden !== true
                       );
+                      nameGroup.filter((itm) => !itm.hidden)
                       const sortedNameGroup = nameGroup.sort((a, b) => (a.groupPosition || 0) - (b.groupPosition || 0));
                       const isItemsMultiple = nameGroup.length > 1;
                       const firstIndexOfGroup = section.items.findIndex((i) => i.name.toLowerCase() === item.name.toLowerCase());
@@ -1021,6 +1020,8 @@ const Vendors = () => {
                       }
 
                       if (!isItemsMultiple) {
+                        const isItemHidden = item?.hidden ?? false;
+                        if (isItemHidden) return null;
                         return (
                           <View key={item.id} className={`w-full bg-[white] rounded-b-[10px] gap-[3px] ${section.categoryName !== 'Uncategorized' ? 'border-l-[10px] border-wheat' : ''}`}>
                             <ItemCard
