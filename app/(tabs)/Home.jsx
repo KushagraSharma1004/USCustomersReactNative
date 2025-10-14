@@ -316,24 +316,34 @@ const Home = () => {
         return snapshot.docs.map(doc => ({
           ...doc.data(),
           id: doc.id,
+          categoryId: vendor.category,
+          vendorMobileNumber: vendor.vendorMobileNumber,
+          businessName: vendor.businessName,
+          businessImageURL: vendor.businessImageURL,
+          distance: vendor.distance,
+          available: vendor.available,
+          isVendorActive: vendor.isVendorActive
         })).filter(p => !p.hidden);
       });
-
+  
       const results = await Promise.all(promises);
       const byVendor = {};
       vendors.forEach((v, i) => {
         byVendor[v.vendorMobileNumber] = results[i];
       });
       setAllProductsByVendor(byVendor);
-
+  
       const mr = Math.max(...results.map(r => r.length), 0);
       setMaxRounds(mr);
-
+  
       // Load the first round immediately if there are products
       if (mr > 0) {
-        loadNextRound();
+        setAllProducts([]); // Reset products
+        setCurrentRound(0);
+        setHasMoreProducts(true);
       } else {
         setHasMoreProducts(false);
+        setAllProducts([]);
       }
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -402,8 +412,8 @@ const Home = () => {
       // Reset state for new fetch
       setCurrentRound(0);
       setAllProducts([]);
-      setHasMoreProducts(true);
-
+      setHasMoreProducts(false);
+  
       snapshotVendors.current = activeVendorsForProducts;
       fetchProductsForVendors(activeVendorsForProducts);
     } else {
@@ -413,7 +423,7 @@ const Home = () => {
       setAllProducts([]);
       setHasMoreProducts(false);
     }
-  }, [selectedMode, activeVendorsForProducts]); // Use stabilized dependency array
+  }, [selectedMode, activeVendorsForProducts, selectedCategoryId, fetchProductsForVendors]);
 
   if (loadingLocation) {
     return (
@@ -815,6 +825,8 @@ const Home = () => {
                         ₹{item.prices?.[0]?.sellingPrice || 'N/A'} / {item.prices?.[0]?.measurement || ''}
                       </Text>
                     </View>
+
+                    <Text className="text-[10px]" numberOfLines={2}>Seller: {item.businessName || 'Business'}</Text>
 
                     {/* Vendor Availability */}
                     {item.available === false && <Text className="text-xs text-primary">Takeaway Only</Text>}
