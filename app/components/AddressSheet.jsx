@@ -1,14 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Alert, TextInput, KeyboardAvoidingView, Platform, Modal, Image
+import {
+    View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Alert, TextInput, KeyboardAvoidingView, Platform, Modal, Image
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { db } from '@/firebase';
-import { collection, doc, getDocs, setDoc, updateDoc, deleteDoc, query, where, serverTimestamp, writeBatch, getDoc
+import {
+    collection, doc, getDocs, setDoc, updateDoc, deleteDoc, query, where, serverTimestamp, writeBatch, getDoc
 } from 'firebase/firestore';
 import MapPicker from './MapPicker';
 import TextInputComponent from './TextInput';
 import ConfirmationModal from './ConfirmationModal';
 import SuccessModal from './SuccessModal';
+import { getCurrentLocation } from '../utils/location';
 
 const AddressSheet = ({ onClose }) => {
     const { customerMobileNumber, setCustomerAddress } = useAuth();
@@ -19,6 +22,7 @@ const AddressSheet = ({ onClose }) => {
     const [editingAddress, setEditingAddress] = useState(null);
     const [initialLatitude, setInitialLatitude] = useState(null);
     const [initialLongitude, setInitialLongitude] = useState(null);
+    const [errorMessageInFetchingLocation, setErrorMessageInFetchingLocation] = useState(null)
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorMessage, setErrorMessage] = useState('')
     const [isConfirmModalVisible, setIsConfirmModalVisible] = useState(false)
@@ -86,24 +90,17 @@ const AddressSheet = ({ onClose }) => {
         fetchAddresses();
     }, [fetchAddresses]);
 
-    const fetchCustomerLocation = () => {
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                setInitialLatitude(position.coords.latitude);
-                setInitialLongitude(position.coords.longitude);
-                setFormData(prev => ({
-                    ...prev,
-                    customerLocation: {
-                        latitude: position.coords.latitude,
-                        longitude: position.coords.longitude
-                    }
-                }));
-            },
-            (error) => {
-                setInitialLatitude(null);
-                setInitialLongitude(null);
-            }
-        );
+    const fetchCustomerLocation = async () => {
+        try {
+            const currentLocation = await getCurrentLocation();
+
+            // Set the initial coordinates for the map
+            setInitialLatitude(currentLocation.latitude);
+            setInitialLongitude(currentLocation.longitude);
+        } catch (error) {
+            console.error('Error fetching location:', error);
+            setErrorMessageInFetchingLocation(error)
+        }
     };
 
     useEffect(() => {
@@ -111,6 +108,10 @@ const AddressSheet = ({ onClose }) => {
     }, []);
 
     const addAddress = async (newAddressData) => {
+        if (!newAddressData.customerLocation.latitude || !newAddressData.customerLocation.longitude) {
+            alert('Please enable location from\nBrowser Menu > Site Settings > Location > Blocked > Select https://customers.unoshops.com > Allow');
+            return
+        }
         if (!customerMobileNumber) {
             throw new Error('Customer mobile number is not available.');
         }
@@ -184,6 +185,10 @@ const AddressSheet = ({ onClose }) => {
     };
 
     const updateAddress = async (addressId, updatedData) => {
+        if (!updatedData.customerLocation.latitude || !updatedData.customerLocation.longitude) {
+            alert('Please enable location from\nBrowser Menu > Site Settings > Location > Blocked > Select https://customers.unoshops.com > Allow');
+            return
+        }
         if (!customerMobileNumber) {
             throw new Error('Customer mobile number is not available.');
         }
@@ -500,7 +505,7 @@ const AddressSheet = ({ onClose }) => {
                 <View className='w-full rounded-[10px] p-[5px] border-[2px] border-[#c1d1f0] gap-[5px]' >
                     <Text className='text-center font-bold text-[15px]' >Select A Location On Map</Text>
                     <View className='w-full h-[180px]' >
-                        {formData.customerLocation.latitude && formData.customerLocation.longitude &&
+                        {(formData.customerLocation.latitude && formData.customerLocation.longitude) || (initialLatitude && initialLongitude) ? (
                             <MapPicker
                                 onLocationSelect={({ latitude, longitude, address, addressComponents }) => {
                                     setFormData({
@@ -513,12 +518,14 @@ const AddressSheet = ({ onClose }) => {
                                         addressComponents
                                     });
                                 }}
-                                initialLatitude={formData.customerLocation.latitude}
-                                initialLongitude={formData.customerLocation.longitude}
+                                initialLatitude={formData?.customerLocation?.latitude || initialLatitude}
+                                initialLongitude={formData?.customerLocation?.longitude || initialLongitude}
                                 apiKey="AIzaSyAlsboNdLoq6B6O5oPyPPnpbMT6FIOvPhE"
                                 mapId="GoogleMapsAPIKeyForAdmin"
                             />
-                        }
+                        ) : (
+                            <Text className="text-red-500 text-center">Unable to load map. Location not available.</Text>
+                        )}
                     </View>
                     {formData.address && formData.address !== '' && <View className='p-[10px] border-[3px] border-[#ccc] rounded-[10px]' >
                         <Text>{formData.address}</Text>
