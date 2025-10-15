@@ -104,23 +104,11 @@ const getDistanceKm = (loc1, loc2) => {
   return R * c
 }
 
-// Shuffle array to mix products randomly
-const shuffleArray = (array) => {
-  const shuffled = [...array];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
-};
-
 const Home = () => {
   const { categoriesThoseHaveVendor, allVendors, customerAddress, myVendors, customerMobileNumber, fetchMyVendors } = useAuth()
   const router = useRouter()
   const [selectedCategoryId, setSelectedCategoryId] = useState(null)
   const [customerLocation, setCustomerLocation] = useState(null)
-  // const [locationError, setLocationError] = useState(null)
-  // const [distanceFilter, setDistanceFilter] = useState(null)
   const [loadingLocation, setLoadingLocation] = useState(true)
   const [searchQuery, setSearchQuery] = useState(''); // New state for search query
   const [isSearchBarVisible, setIsSearchBarVisible] = useState(false)
@@ -183,26 +171,64 @@ const Home = () => {
   }
 
   const sortedProducts = useMemo(() => {
-    let products = allProducts;
+    let products = [];
+  
+    if (selectedCategoryId && selectedCategoryId !== '') {
+      // ✅ STEP 1: Get ALL category products by vendor
+      const categoryProductsByVendor = {};
+      Object.entries(allProductsByVendor).forEach(([vendorId, vendorProducts]) => {
+        const categoryProducts = vendorProducts.filter(p => p.categoryId === selectedCategoryId);
+        if (categoryProducts.length > 0) {
+          categoryProductsByVendor[vendorId] = categoryProducts;
+        }
+      });
+  
+      // ✅ STEP 2: Sort vendors by distance/rating (same as meshing order)
+      const vendorOrder = snapshotVendors.current
+        .filter(v => categoryProductsByVendor[v.vendorMobileNumber])
+        .sort((a, b) => {
+          if (a.distance !== null && b.distance !== null) return a.distance - b.distance;
+          if (a.distance !== null) return -1;
+          if (b.distance !== null) return 1;
+          return (b.ratingCount || 0) - (a.ratingCount || 0);
+        });
+  
+      // ✅ STEP 3: MESH like original - 1 from each vendor, rotate
+      const maxRounds = Math.max(...Object.values(categoryProductsByVendor).map(arr => arr.length));
+      for (let round = 0; round < maxRounds; round++) {
+        vendorOrder.forEach(vendor => {
+          const vendorProducts = categoryProductsByVendor[vendor.vendorMobileNumber];
+          if (vendorProducts[round]) {
+            products.push({
+              ...vendorProducts[round],
+              categoryId: vendor.category,
+              vendorMobileNumber: vendor.vendorMobileNumber,
+              businessName: vendor.businessName,
+              businessImageURL: vendor.businessImageURL,
+              distance: vendor.distance,
+              available: vendor.available,
+              isVendorActive: vendor.isVendorActive
+            });
+          }
+        });
+      }
+    } else {
+      // No category → use normal meshed products
+      products = allProducts;
+    }
+  
     const lowercasedQuery = searchQuery.toLowerCase();
-
-    // 1. Search Filter (Only run if query exists)
+  
+    // 1. Search Filter
     if (searchQuery) {
       products = products.filter(product =>
-        product.name?.toLowerCase().includes(lowercasedQuery)
+        product.name?.toLowerCase().includes(lowercasedQuery) ||
+        product.businessName?.toLowerCase().includes(lowercasedQuery)
       );
     }
-
-    // 2. Distance Filter (Only run if filter exists)
-    // if (distanceFilter) {
-    //   products = products.filter(product => product.distance !== null && product.distance <= distanceFilter);
-    // }
-
-    // Products are already "meshed" and appended in a specific order in `loadNextRound`, so no further sorting is applied here.
+  
     return products;
-  }, [allProducts, searchQuery, 
-    // distanceFilter
-  ]);
+  }, [allProducts, searchQuery, allProductsByVendor, selectedCategoryId, snapshotVendors]);
 
   useEffect(() => {
     // getCurrentLocation()
@@ -404,7 +430,7 @@ const Home = () => {
         }
         return (b.ratingCount || 0) - (a.ratingCount || 0);
       });
-  }, [vendorsWithDistanceAndAvailability, selectedCategoryId]);
+  }, [vendorsWithDistanceAndAvailability]);
 
   // --- Product Fetching Logic ---
   useEffect(() => {
@@ -433,15 +459,6 @@ const Home = () => {
       </View>
     )
   }
-
-  // if (locationError) {
-  //   return (
-  //     <View className="flex-1 justify-center items-center p-10">
-  //       <Text className="text-center text-red-600 mb-3">Error getting location: {locationError}</Text>
-  //       <Text className="text-center">Some features may not be available.</Text>
-  //     </View>
-  //   )
-  // }
 
   return (
     <View className="gap-[1px] flex-1">
