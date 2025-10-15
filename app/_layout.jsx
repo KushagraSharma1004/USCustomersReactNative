@@ -39,29 +39,29 @@ export default function RootLayout() {
     setTimeout(() => setIsAddressSheetVisible(false), 300); // wait for close animation
   };
 
-  const ProtectedRoute = ({ children }) => {
-    const { customerMobileNumber } = useAuth();
-    const router = useRouter();
-    const pathname = usePathname();
-    const [isMounted, setIsMounted] = useState(false);
+  // const ProtectedRoute = ({ children }) => {
+  //   const { customerMobileNumber } = useAuth();
+  //   const router = useRouter();
+  //   const pathname = usePathname();
+  //   const [isMounted, setIsMounted] = useState(false);
   
-    useEffect(() => {
-      setIsMounted(true); // Mark component as mounted
-    }, []);
+  //   useEffect(() => {
+  //     setIsMounted(true); // Mark component as mounted
+  //   }, []);
   
-    useEffect(() => {
-      if (!isMounted) return; // Skip navigation until mounted
+  //   useEffect(() => {
+  //     if (!isMounted) return; // Skip navigation until mounted
   
-      const publicRoutes = ['/Login', '/index', '/SignUp', '/[...not-found]'];
-      if (!publicRoutes.includes(pathname)) {
-        if (!customerMobileNumber || customerMobileNumber.length !== 10) {
-          router.replace('/Login');
-        }
-      }
-    }, [customerMobileNumber, pathname, router, isMounted]);
+  //     const publicRoutes = ['/Login', '/index', '/SignUp', '/[...not-found]'];
+  //     if (!publicRoutes.includes(pathname)) {
+  //       if (!customerMobileNumber || customerMobileNumber.length !== 10) {
+  //         router.replace('/Login');
+  //       }
+  //     }
+  //   }, [customerMobileNumber, pathname, router, isMounted]);
   
-    return children;
-  };
+  //   return children;
+  // };
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
@@ -73,7 +73,7 @@ export default function RootLayout() {
       <AuthProvider>
         <CartProvider>
           <AddressSheetProvider openAddressSheet={openAddressSheet}>
-            <ProtectedRoute>
+            {/* <ProtectedRoute> */}
               <Stack>
                 <Stack.Screen name="Login" options={{ headerShown: false }} />
                 <Stack.Screen name="index" options={{ headerShown: false }} />
@@ -85,7 +85,7 @@ export default function RootLayout() {
                 <Stack.Screen name="Settings" options={{ headerShown: false }} />
                 <Stack.Screen name="[...not-found]" options={{ headerShown: false }} />
               </Stack>
-            </ProtectedRoute>
+            {/* </ProtectedRoute> */}
             {/* <BottomSheet
               ref={addressSheetRef}
               snapPoints={snapPointsForAddressSheet}
