@@ -132,7 +132,7 @@ const MyOrders = () => {
                 <Text className='font-bold' >Sub Total:</Text>
                 <Text className='flex-1 text-right' >
                   <HighlightText
-                    text={`₹${Number((item.totalAmount ?? 0) - (item.deliveryCharge ?? 0) + (item.appliedOffers?.[0]?.discount ?? 0))}`}
+                    text={`₹${(Number((item.totalAmount ?? 0) - (item.deliveryCharge ?? 0) + (item.appliedOffers?.[0]?.discount ?? 0))).toFixed(2)}`}
                     highlight={searchText}
                   />
 
@@ -158,7 +158,7 @@ const MyOrders = () => {
               <View className='w-full flex-row' >
                 <Text className='font-bold text-primary text-[16px]' >Total Amount:</Text>
                 <Text className='flex-1 text-right font-bold text-primary text-[16px]' >
-                  <HighlightText text={`₹${item.totalAmount}`} highlight={searchText} />
+                  <HighlightText text={`₹${item.totalAmount.toFixed(2)}`} highlight={searchText} />
                 </Text>
               </View>
 
