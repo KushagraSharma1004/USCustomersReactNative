@@ -1,4 +1,4 @@
-import { View, Text } from 'react-native'
+import { View, Text, FlatList } from 'react-native'
 import React, { useEffect, useState } from 'react'
 import ToggleButton from './components/ToggleButton'
 import { useAuth } from './context/AuthContext'
@@ -89,6 +89,50 @@ const Settings = () => {
     }
   }
 
+  const handleChangeIsVendorAllowedFromAllowedVendorsList = async (vendorMobileNumber) => {
+    try {
+      const customerRef = doc(db, 'customers', customerMobileNumber)
+
+      if (customerFullData?.allowedVendors?.some(v => v.vendorMobileNumber === vendorMobileNumber)) {
+        // Remove vendor from allowed list
+        const updatedAllowedVendors = customerFullData.allowedVendors.filter(
+          (vendor) => vendor.vendorMobileNumber !== vendorMobileNumber
+        )
+
+        await updateDoc(customerRef, { allowedVendors: updatedAllowedVendors })
+        setCustomerFullData({
+          ...customerFullData,
+          allowedVendors: updatedAllowedVendors
+        })
+      } else {
+        // Add vendor to allowed list
+        const vendorRef = doc(db, 'users', vendorMobileNumber)
+        const vendorDoc = await getDoc(vendorRef)
+
+        if (vendorDoc.exists()) {
+          const vendorData = vendorDoc.data()
+          const newAllowedVendor = {
+            vendorMobileNumber: vendorMobileNumber,
+            businessName: vendorData?.businessName || '',
+            addedDate: new Date().toISOString()
+          }
+          const updatedAllowedVendors = [
+            ...(customerFullData?.allowedVendors || []),
+            newAllowedVendor
+          ]
+
+          await updateDoc(customerRef, { allowedVendors: updatedAllowedVendors })
+          setCustomerFullData({
+            ...customerFullData,
+            allowedVendors: updatedAllowedVendors
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Error changing vendor allowance from list:', error)
+    }
+  }
+
   return (
     <View className='flex-1'>
       <View className='p-[10px] w-full border-b-[3px] border-primary rounded-[10px]'>
@@ -108,6 +152,27 @@ const Settings = () => {
               textFontSize={12}
             />
           </View>
+        )}
+        {!isAnyVendorSelected && (
+          <FlatList
+            data={customerFullData?.allowedVendors}
+            renderItem={({ item, index }) => {
+              return (
+                <View className='flex-row items-center justify-between mb-[5px]'>
+                  <Text className='flex-1 mr-2'>
+                    Allow "{item.businessName}" to login your account:
+                  </Text>
+                  <ToggleButton
+                    active="ON"
+                    inactiveText="OFF"
+                    value={true} // Always true since it's in allowed list
+                    onPress={() => handleChangeIsVendorAllowedFromAllowedVendorsList(item.vendorMobileNumber)}
+                    textFontSize={12}
+                  />
+                </View>
+              )
+            }}
+          />
         )}
       </View>
     </View>

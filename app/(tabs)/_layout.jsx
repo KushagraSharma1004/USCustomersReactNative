@@ -15,6 +15,7 @@ const TabsLayout = () => {
     const segments = useSegments();
     const { cartCount, cartTotal } = useCart();
     const params = useGlobalSearchParams()
+    const router = useRouter()
     const isVendorsScreenOpen = segments.includes('Vendors');
     const isMyCartScreenOpen = segments.includes('MyCart');
     const [isSubMenuModalVisible, setIsSubMenuModalVisible] = useState(false)
@@ -127,6 +128,14 @@ const TabsLayout = () => {
                             options={{
                                 tabBarIcon: ({ focused }) => <Image style={{ height: 35, width: 35, tintColor: focused ? 'white' : '' }} source={require('../../assets/images/homeImage.png')} />,
                             }}
+                            listeners={{
+                                tabPress: (e) => {
+                                    e.preventDefault();
+                                    localStorage.setItem('vendor', null)
+                                    localStorage.removeItem('vendor')
+                                    router.push('/Home')
+                                },
+                            }}
                         />
 
                         <Tabs.Screen
@@ -150,7 +159,6 @@ const TabsLayout = () => {
                                 tabBarBadgeStyle: { backgroundColor: 'black' },
                                 headerStyle: { height: 40 },
                                 headerLeft: () => {
-                                    const router = useRouter()
                                     const vendor = localStorage.getItem('vendor')
                                     return (
                                         <TouchableOpacity onPress={() => router.push(`/Vendors?vendor=${encodeURIComponent(vendor)}`)} style={{ marginLeft: 10 }}>
