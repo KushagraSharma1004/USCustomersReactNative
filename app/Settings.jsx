@@ -49,6 +49,7 @@ const Settings = () => {
   }, [customerFullData, isAnyVendorSelected])
 
   const handleChangeIsVendorAllowed = async () => {
+    if(!window.confirm('Are you sure?')) return
     try {
       const selectedVendor = decryptData(localStorage.getItem('vendor')) || ''
       const customerRef = doc(db, 'customers', customerMobileNumber)
@@ -90,6 +91,7 @@ const Settings = () => {
   }
 
   const handleChangeIsVendorAllowedFromAllowedVendorsList = async (vendorMobileNumber) => {
+    if(!window.confirm('Are you sure?')) return
     try {
       const customerRef = doc(db, 'customers', customerMobileNumber)
 
