@@ -7,7 +7,7 @@ import { FlashList } from "@shopify/flash-list";
 import { useAuth } from '../context/AuthContext';
 import { useCart } from "../context/CartContext";
 import { decryptData, encryptData } from '../context/hashing'
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
 import Loader from '../components/Loader'
 import { useAddressSheet } from '../context/AddressSheetContext'
 import { useServiceAreaCheck } from '../hooks/useServiceAreaCheck';
@@ -15,6 +15,7 @@ import { RatingStars } from '../components/RatingStars';
 
 const MyCart = () => {
   const router = useRouter()
+  const params = useLocalSearchParams()
   const { customerMobileNumber, customerAddress, customerFullData, vendorOffers } = useAuth()
   const { cartItems, fetchCartItems, cartCount, cartTotal } = useCart()
   const { openAddressSheet } = useAddressSheet()
@@ -38,6 +39,7 @@ const MyCart = () => {
   const [selectedOffers, setSelectedOffers] = useState([]);
   const [finalAmount, setFinalAmount] = useState(0);
   const [totalDiscount, setTotalDiscount] = useState(0);
+  const [isVendorVisiting, setIsVendorVisiting] = useState(decryptData(params.isVendorVisiting) === 'true' ? true : false)
 
   const calculateOffers = useCallback(() => {
     if (!vendorOffers || !cartItems || Object.keys(cartItems).length === 0) {
@@ -594,7 +596,7 @@ const MyCart = () => {
       setIsRatingModalVisible(false);
       setRating(0);
       setRatingComment('');
-      router.push(`/Vendors/?vendor=${encodeURIComponent(localStorage.getItem('vendor'))}`)
+      router.push(`/Vendors/?vendor=${encodeURIComponent(localStorage.getItem('vendor'))}&isVendorVisiting=${encodeURIComponent(encryptData('true'))}`)
     } catch (e) {
       // Show error toast or alert
     }
@@ -627,7 +629,7 @@ const MyCart = () => {
               </TouchableOpacity>
               <TouchableOpacity
                 className='flex-1 p-[10px] rounded-[10px] bg-[#ccc]'
-                onPress={() => { setIsRatingModalVisible(false); router.push(`/Vendors/?vendor=${encodeURIComponent(localStorage.getItem('vendor'))}`) }}
+                onPress={() => { setIsRatingModalVisible(false); router.push(`/Vendors/?vendor=${encodeURIComponent(localStorage.getItem('vendor'))}&isVendorVisiting=${encodeURIComponent(encryptData('true'))}`) }}
               >
                 <Text className='text-white text-center'>Maybe later</Text>
               </TouchableOpacity>
@@ -643,7 +645,7 @@ const MyCart = () => {
       <View className='flex-1 items-center justify-center gap-[10px]' >
         <Image style={{ height: 300, width: 300 }} source={require('../../assets/images/emptyCartImage.png')} className='rounded-[10px]' />
         <Text className='text-[20px] font-bold text-primaryRed' >Your cart is empty</Text>
-        <TouchableOpacity onPress={() => router.push(`/Vendors/?vendor=${encodeURIComponent(localStorage.getItem('vendor'))}`)} className='mt-[20px]' ><Text className='text-[18px] text-primary text-center underline' >Continue Shopping</Text></TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push(`/Vendors/?vendor=${encodeURIComponent(localStorage.getItem('vendor'))}&isVendorVisiting=${encodeURIComponent(encryptData('true'))}`)} className='mt-[20px]' ><Text className='text-[18px] text-primary text-center underline' >Continue Shopping</Text></TouchableOpacity>
       </View>
     )
   }
@@ -677,7 +679,7 @@ const MyCart = () => {
       }
 
       <View className='border-b-[5px] border-primary rounded-b-[10px] px-[10px] py-[5px] gap-[5px] bg-white' >
-        {selectedDeliveryMode === 'homeDelivery' && <TouchableOpacity onPress={openAddressSheet} className='p-[5px] bg-primary rounded-[5px] absolute top-[0px] right-[5px] z-10' ><Text className='text-white' >Change</Text></TouchableOpacity>}
+        {selectedDeliveryMode === 'homeDelivery' && !isVendorVisiting && <TouchableOpacity onPress={openAddressSheet} className='p-[5px] bg-primary rounded-[5px] absolute top-[0px] right-[5px] z-10' ><Text className='text-white' >Change</Text></TouchableOpacity>}
         {selectedDeliveryMode === 'homeDelivery' &&
           <View>
 

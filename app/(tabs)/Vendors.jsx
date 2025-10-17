@@ -22,6 +22,7 @@ import QRScannerModal from '../components/QRScannerModal'
 const Vendors = () => {
   const { customerMobileNumber, fetchMyVendors, setCustomerMobileNumber, fetchVendorOffers } = useAuth()
   const router = useRouter()
+  const { cartCount, cartTotal } = useCart()
   const params = useLocalSearchParams()
   const screenWidth = Dimensions.get('window').width;
   const vendorMobileNumber = decryptData(params.vendor)
@@ -62,6 +63,7 @@ const Vendors = () => {
     Object.keys(cartItemsForCustomisedQR[vendorMobileNumber]).length > 0;
   const shouldShowMyOrders = fromCustomisedQR && ordersList.length !== 0;
   const [categories, setCategories] = useState([]);
+  const [isVendorVisiting, setIsVendorVisiting] = useState(decryptData(params.isVendorVisiting) === 'true' ? true : false)
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -841,7 +843,7 @@ const Vendors = () => {
         </View>
       </Modal>
 
-      {decryptData(localStorage.getItem('customerMobileNumber')).length === 10 && <Header setIsMyVendorsListModalVisible={setIsMyVendorsListModalVisible} />}
+      {decryptData(localStorage.getItem('customerMobileNumber')).length === 10 && !isVendorVisiting && <Header setIsMyVendorsListModalVisible={setIsMyVendorsListModalVisible} />}
 
       <View className='w-full self-center bg-white rounded-b-[10px] border border-[#ccc] px-[10px]' >
         {fromCustomisedQR && (
@@ -1051,6 +1053,17 @@ const Vendors = () => {
         )}
 
       </ScrollView>
+
+      {isVendorVisiting && (
+        <TouchableOpacity
+        className={`absolute z-[10] bottom-[5px] left-[0px] p-[10px] items-center justify-center rounded-r-[5px] bg-wheat`}
+        onPress={() => router.push(`/MyCart?isVendorVisiting=${encodeURIComponent(encryptData('true'))}`)}
+      >
+        <Image style={{height:30, width:30}} source={require('../../assets/images/myCartImage.png')}/>
+        <Text className='text-[10px]' >Items: ({cartCount})</Text>
+        <Text className='text-[10px]' >Total: ₹{cartTotal}</Text>
+      </TouchableOpacity>
+      )}
 
       {/* ---- Search Icon ----*/}
       {!isSearchBarVisible && (

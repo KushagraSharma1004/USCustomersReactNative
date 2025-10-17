@@ -21,6 +21,13 @@ const Login = () => {
   const registerInVendor = decryptData(localStorage.getItem('registerInVendor')) || ''
   const oldMethod_FromQR = params.fromQR === 'true' ? true : false
   const oldMethod_VendorMobileNumberFromQR = params.vendorMobileNumberFromQR || ''
+  const customerMobileNumberFromVendor = params.customerMobileNumberFromVendor || ''
+  const vendorMobileNumberForComingInCustomer = params.vendorMobileNumberForComingInCustomer || ''
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   useEffect(() => {
     if (customerMobileNumberFromURL && customerMobileNumberFromURL.length === 10) {
@@ -37,6 +44,15 @@ const Login = () => {
       return
     }
   }, [oldMethod_FromQR, oldMethod_VendorMobileNumberFromQR])
+
+  useEffect(() => {
+    if(!isMounted) return
+    if(decryptData(customerMobileNumberFromVendor).length === 10 && decryptData(vendorMobileNumberForComingInCustomer).length === 10){
+      localStorage.setItem('customerMobileNumber', encodeURIComponent(customerMobileNumberFromVendor))
+      setCustomerMobileNumber(decryptData(customerMobileNumberFromVendor))
+      router.replace(`/Vendors/?vendor=${encodeURIComponent(customerMobileNumberFromVendor)}&isVendorVisiting=${encodeURIComponent(encryptData('true'))}`)
+    }
+  }, [customerMobileNumberFromVendor, vendorMobileNumberForComingInCustomer, isMounted])
 
   const validateForm = () => {
     const isMobileNumberValid = customerMobileNumber.length === 10;
