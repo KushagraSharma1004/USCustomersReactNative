@@ -50,7 +50,7 @@ const Login = () => {
     if(decryptData(customerMobileNumberFromVendor).length === 10 && decryptData(vendorMobileNumberForComingInCustomer).length === 10){
       localStorage.setItem('customerMobileNumber', encodeURIComponent(customerMobileNumberFromVendor))
       setCustomerMobileNumber(decryptData(customerMobileNumberFromVendor))
-      router.replace(`/Vendors/?vendor=${encodeURIComponent(customerMobileNumberFromVendor)}&isVendorVisiting=${encodeURIComponent(encryptData('true'))}`)
+      router.replace(`/Vendors/?vendor=${encodeURIComponent(vendorMobileNumberForComingInCustomer)}&isVendorVisiting=${encodeURIComponent(encryptData('true'))}`)
     }
   }, [customerMobileNumberFromVendor, vendorMobileNumberForComingInCustomer, isMounted])
 
