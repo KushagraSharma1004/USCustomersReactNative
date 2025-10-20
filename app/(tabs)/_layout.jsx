@@ -10,12 +10,15 @@ import { useCart } from "../context/CartContext";
 import { decryptData } from '../context/hashing'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/firebase'
+import { useFocusEffect } from '@react-navigation/native'
+import { useAuth } from '../context/AuthContext'
 
 const TabsLayout = () => {
     const segments = useSegments();
     const { cartCount, cartTotal } = useCart();
     const params = useGlobalSearchParams()
     const router = useRouter()
+    const {logout} = useAuth()
     const isVendorsScreenOpen = segments.includes('Vendors');
     const isMyCartScreenOpen = segments.includes('MyCart');
     const [isSubMenuModalVisible, setIsSubMenuModalVisible] = useState(false)
@@ -31,6 +34,62 @@ const TabsLayout = () => {
     useEffect(() => {
         setIsVendorVisiting(decryptData(params.isVendorVisiting) === 'true' ? true : false)
     }, [params.isVendorVisiting])
+    
+    useFocusEffect(
+      useCallback(() => {
+        if (isVendorVisiting && !isMyCartScreenOpen && !isVendorsScreenOpen) {
+          handleVendorLogout();
+        }
+      }, [isVendorVisiting, isMyCartScreenOpen, isVendorsScreenOpen, segments, logout, router])
+    );
+    
+    const handleVendorLogout = useCallback(() => {
+      localStorage.removeItem('customerMobileNumber');
+      localStorage.setItem('vendor', null);
+      logout();
+      router.replace('/Login');
+    }, [logout, router]);
+    
+    useEffect(() => {
+            let isCleanup = false;
+    
+            // METHOD 1: Browser Tab Close/Refresh
+            const handleBeforeUnload = (e) => {
+                if (isVendorVisiting && !isCleanup) {
+                    localStorage.removeItem('customerMobileNumber');
+                    localStorage.setItem('vendor', null);
+                    logout();
+                }
+            };
+    
+            // METHOD 2: Page Visibility Change (Tab Switch)
+            const handleVisibilityChange = () => {
+                if (document.hidden && isVendorVisiting && !isCleanup) {
+                    handleVendorLogout();
+                }
+            };
+    
+            // METHOD 3: Window Unload (Fallback)
+            const handleUnload = () => {
+                if (isVendorVisiting && !isCleanup) {
+                    localStorage.removeItem('customerMobileNumber');
+                    localStorage.setItem('vendor', null);
+                    logout();
+                }
+            };
+    
+            // ADD LISTENERS
+            window.addEventListener('beforeunload', handleBeforeUnload);
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+            window.addEventListener('unload', handleUnload);
+    
+            return () => {
+                isCleanup = true;
+                window.removeEventListener('beforeunload', handleBeforeUnload);
+                document.removeEventListener('visibilitychange', handleVisibilityChange);
+                window.removeEventListener('unload', handleUnload);
+            };
+        }, [isVendorVisiting, logout, handleVendorLogout]);
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -54,7 +113,6 @@ const TabsLayout = () => {
                 return
             }
             const vendorData = vendorDocSnap.data()
-
             setVendorFullData(vendorData)
         } catch (error) {
             console.log('Error fetching vendor details: ', error)
@@ -129,12 +187,15 @@ const TabsLayout = () => {
                                 tabBarIcon: ({ focused }) => <Image style={{ height: 35, width: 35, tintColor: focused ? 'white' : '' }} source={require('../../assets/images/homeImage.png')} />,
                             }}
                             listeners={{
-                                tabPress: (e) => {
-                                    e.preventDefault();
-                                    localStorage.setItem('vendor', null)
+                              tabPress: (e) => {
+                                e.preventDefault();
+                                if (isVendorVisiting) {
+                                    handleVendorLogout(); // ✅ FIXED
+                                } else {
                                     localStorage.removeItem('vendor')
                                     router.push('/Home')
-                                },
+                                }
+                              },
                             }}
                         />
 
