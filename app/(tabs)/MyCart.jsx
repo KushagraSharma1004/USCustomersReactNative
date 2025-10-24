@@ -561,6 +561,36 @@ const MyCart = () => {
       });
 
       await Promise.all(deletePromises);
+      
+      const vendorRef = doc(db, 'users', vendorMobileNumber)
+      
+      try {
+        if(Number(vendorFullData?.todaysOrdersCount || 0) > 9){
+          // Check balance first, then use increment
+          if(Number(vendorFullData?.balance || 0) - 0.50 >= 0){
+            await updateDoc(vendorRef, {
+              balance: increment(-0.50),
+              todaysOrdersCount: increment(1)
+            });
+            setVendorFullData({ ...vendorFullData, balance: Number(vendorFullData?.balance || 0) - 0.50, todaysOrdersCount: Number(vendorFullData?.todaysOrdersCount || 0) + 1 })
+          } else {
+            await updateDoc(vendorRef, {
+              balance: 0,
+              todaysOrdersCount: increment(1)
+            });
+            setVendorFullData({ ...vendorFullData, balance: 0, todaysOrdersCount: Number(vendorFullData?.todaysOrdersCount || 0) + 1 })
+          }
+        } else {
+          // Just increment the count if <= 10
+          await updateDoc(vendorRef, {
+            todaysOrdersCount: increment(1)
+          });
+          setVendorFullData({ ...vendorFullData, todaysOrdersCount: Number(vendorFullData?.todaysOrdersCount || 0) + 1 })
+        }
+      } catch (error) {
+        console.error('Error updating vendor data:', error);
+        // Handle error appropriately
+      }
 
       setOrderComment('')
       setIsOrderCommentModalShown(false)
