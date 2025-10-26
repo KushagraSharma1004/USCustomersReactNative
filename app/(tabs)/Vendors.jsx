@@ -966,7 +966,7 @@ const Vendors = () => {
             return (
               <View>
                 {sortedCategorySections.map((section) => (
-                  <View key={section.categoryId} className="mb-[2px]">
+                  <View key={section.categoryId} className="mb-[3px]">
                     {/* Category Header */}
                     {section.categoryName !== 'Uncategorized' && section.items.filter((itm) => !itm.hidden).length !== 0 && (
                       <View className="bg-wheat p-[10px] rounded-t-[10px]">
@@ -990,8 +990,8 @@ const Vendors = () => {
                       // Only render the first item of each name group to avoid duplicates
                       if (isItemsMultiple && section.items[firstIndexOfGroup].id === item.id) {
                         return (
-                          <View key={item.id} className={`bg-[white] rounded-b-[10px] gap-[3px] ${section.categoryName !== 'Uncategorized' ? 'border-l-[10px] border-wheat' : ''}`}>
-                            <Text className="text-base font-bold m-[5px] text-white text-center bg-primary rounded-[10px] p-[7px]">
+                          <View key={item.id} className={`bg-[white] gap-[3px] ${section.categoryName !== 'Uncategorized' ? 'bg-[#00000020] border-l-[10px] border-wheat' : 'rounded-b-[10px]'}`}>
+                            <Text className="text-base font-bold text-white text-center bg-primary rounded-[10px] p-[7px] mx-[5px]">
                               {item.name}
                             </Text>
 
@@ -1004,7 +1004,7 @@ const Vendors = () => {
                                 if (isGroupItemHidden) return null;
 
                                 return (
-                                  <View className="mr-2">
+                                  <View className="mr-[5px]">
                                     <MultipleItemsCard
                                       item={groupedItem}
                                       innerIndex={sortedNameGroup.length - groupedItemIndex}
@@ -1025,7 +1025,7 @@ const Vendors = () => {
                         const isItemHidden = item?.hidden ?? false;
                         if (isItemHidden) return null;
                         return (
-                          <View key={item.id} className={`w-full bg-[white] rounded-b-[10px] gap-[3px] ${section.categoryName !== 'Uncategorized' ? 'border-l-[10px] border-wheat' : ''}`}>
+                          <View key={item.id} className={`w-full bg-[white] gap-[3px] ${section.categoryName !== 'Uncategorized' ? 'bg-[#00000020] border-l-[10px] border-wheat' : ''}`}>
                             <ItemCard
                               item={item}
                               cartItem={cartSource[item.id] || null}

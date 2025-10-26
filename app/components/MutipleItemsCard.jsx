@@ -1,23 +1,39 @@
-import { View, Text, Image, TouchableOpacity, ScrollView, Modal } from 'react-native'
-import React, { useState } from 'react'
+import { View, Text, Image, TouchableOpacity, ScrollView, Modal, FlatList } from 'react-native'
+import React, { useState, useEffect } from 'react'
 import { Shadow } from 'react-native-shadow-2';
-import { useAuth } from '../context/AuthContext';
 
 const MultipleItemsCard = ({ item, innerIndex, cartItem, onAddToCart, onIncrement, onDecrement }) => {
     const [isItemImageModalVisible, setIsItemImageModalVisible] = useState(false)
     const [selectedImage, setSelectedImage] = useState(item?.images?.[0] || null)
     const quantity = cartItem?.quantity || 0;
     const imageUri = item?.images?.[0];
-
-    const mrp = item?.prices?.[0]?.mrp || 0;
-    const sellingPrice = item?.prices?.[0]?.sellingPrice || 0;
+    const [selectedVariant, setSelectedVariant] = useState(item?.variants?.[item?.variants?.length - 1] || null);
+    const mrp = selectedVariant ? selectedVariant.prices[0].variantMrp : item.prices[0].mrp || 0;
+    const sellingPrice = selectedVariant ? selectedVariant.prices[0].variantSellingPrice : item.prices[0].sellingPrice || 0;
     const discountPercentage =
         mrp > 0 ? (((mrp - sellingPrice) / mrp) * 100).toFixed(0) : 0;
+    const [isDropdownVisible, setIsDropdownVisible] = useState(false);
+
+    useEffect(() => {
+        if (item?.variants && item.variants.length > 0) {
+            // Filter variants with non-zero stock
+            const availableVariants = item.variants.filter((variant) => Number(variant?.variantStock || 0) !== 0);
+            
+            // Find the currently selected variant among available variants, or fallback to the first available variant
+            const currentVariant = availableVariants.find(
+                (variant) => variant.variantName === selectedVariant?.variantName
+            ) || availableVariants[0] || null;
+    
+            setSelectedVariant(currentVariant);
+        } else {
+            setSelectedVariant(null);
+        }
+    }, [item, selectedVariant?.variantName]);
 
     return (
         <View className="flex-col justify-between items-center border-b-[1px] border-r-[1px] rounded-[7px] p-[10px] mb-[3px] bg-[#ffffffd9] relative max-w-[170px] gap-[5px]">
             {
-                item.stock === 0 &&
+                (selectedVariant ? selectedVariant.variantStock : item.stock) === 0 &&
                 <View style={{ width: '100%', height: '100%' }} className={`bg-[rgba(0,0,0,0.5)] absolute z-20 justify-center items-center top-0 left-0 bottom-0 rounded-[7px]`}>
                     <Text className='text-white text-[24px] font-bold'>Out of Stock</Text>
                 </View>
@@ -48,32 +64,86 @@ const MultipleItemsCard = ({ item, innerIndex, cartItem, onAddToCart, onIncremen
             <View style={{ width: '100%' }} className="flex-col justify-between items-center gap-[5px]">
                 <View className="flex-row justify-center items-center w-full px-[7px]">
                     <Text className="text-[22px] font-bold text-primary">
-                        ₹{item.prices[0].sellingPrice}/
-                        <Text className="text-[12px]">{item.prices[0].measurement}</Text>
+                        ₹{sellingPrice}/
+                        <Text className="text-[12px]">{selectedVariant ? selectedVariant.prices[0].variantMeasurement : item.prices[0].measurement}</Text>
                     </Text>
                 </View>
 
                 <View className="flex-row justify-between items-center w-full px-[7px]">
-                    <Text className="text-[12px] line-through text-red-500">MRP: ₹{item.prices[0].mrp}</Text>
-                    <Text className="text-[12px] text-[#8B8000]">Stk: {item.stock}</Text>
+                    <Text className="text-[12px] line-through text-red-500">MRP: ₹{mrp}</Text>
+                    <Text className="text-[12px] text-[#8B8000]">Stk: {selectedVariant ? selectedVariant.variantStock : item.stock}</Text>
                 </View>
 
                 <View className="flex-row justify-center items-center w-full px-[7px]">
-                    {quantity !== 0 && <Text className="text-[12px] text-[#28a745] font-bold"><Text className='text-[10px] font-normal' >Sub Total:</Text> ₹{quantity * item.prices[0].sellingPrice}</Text>}
+                    {quantity !== 0 && <Text className="text-[12px] text-[#28a745] font-bold"><Text className='text-[10px] font-normal' >Sub Total:</Text> ₹{quantity * sellingPrice}</Text>}
                     {quantity === 0 && <Text className="text-[12px] text-[#28a745] font-bold"><Text className='text-[10px] font-normal' >Sub Total:</Text> ₹0</Text>}
                 </View>
 
                 {/* Add to cart button section */}
-                <View className="flex-row justify-center items-center w-full px-[7px]">
+                <View className="flex-row items-center w-full">
+                    {item?.variants?.length > 0 && (
+                        <View className="mr-[5px] rounded-[5px] border border-primary items-center justify-center min-w-[60px] max-w-[60px] h-full">
+                            <TouchableOpacity
+                                onPress={() => setIsDropdownVisible(true)}
+                                className="bg-white rounded-[5px] justify-between items-center flex-row flex-1 w-full px-[3px]"
+                            >
+                                <Text className="text-[10px] text-black">
+                                    {selectedVariant
+                                        ? selectedVariant.variantName.slice(0, 10) + (selectedVariant.variantName.length > 10 ? '...' : '')
+                                        : item?.name}
+                                </Text>
+                                <Text className='text-[14px] text-primary' >{'>'}</Text>
+                            </TouchableOpacity>
+                            <Modal
+                                visible={isDropdownVisible}
+                                transparent={true}
+                                animationType="fade"
+                                onRequestClose={() => setIsDropdownVisible(false)}
+                            >
+                                <TouchableOpacity
+                                    className="flex-1 bg-[rgba(0,0,0,0.5)] justify-center items-center"
+                                    onPress={() => setIsDropdownVisible(false)}
+                                >
+                                    <View className="bg-white rounded-[5px] w-[80%] max-h-[200px] p-[10px]">
+                                        <FlatList
+                                            data={item.variants || []}
+                                            keyExtractor={(item, index) => index.toString()}
+                                            renderItem={({ item: variant }) => (
+                                                <TouchableOpacity
+                                                    // disabled={Number(variant?.variantStock) === 0}
+                                                    onPress={() => {
+                                                        if(Number(variant?.variantStock) === 0){
+                                                            return
+                                                        }
+                                                        // if (variant.value === item?.name) {
+                                                        //   setSelectedVariant(null);
+                                                        // } else {
+                                                        setSelectedVariant(variant);
+                                                        // }
+                                                        setIsDropdownVisible(false);
+                                                    }}
+                                                    className={`py-[8px] px-[10px] border-b border-gray-200 ${Number(variant?.variantStock) === 0 ? 'opacity-30' : ''}`}
+                                                >
+                                                    <Text className={`text-[16px] font-bold text-center text-black ${Number(variant?.variantStock) === 0 && 'line-through'}`}>
+                                                        {variant.variantName}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            )}
+                                        />
+                                    </View>
+                                </TouchableOpacity>
+                            </Modal>
+                        </View>
+                    )}
                     {quantity === 0 ? (
                         <TouchableOpacity
                             onPress={() => onAddToCart(item)}
-                            className="bg-primary rounded-[5px] px-[12px] py-[5px] w-full items-center"
+                            className="bg-primary rounded-[5px] px-[12px] py-[5px] flex-1 items-center"
                         >
                             <Text className="text-[15px] font-bold text-white">Add +</Text>
                         </TouchableOpacity>
                     ) : (
-                        <View className="flex-row items-center bg-primary rounded-[5px] w-full justify-between">
+                        <View className="flex-row items-center bg-primary rounded-[5px] flex-1 justify-between">
                             <TouchableOpacity
                                 onPress={() => onDecrement(item.id, quantity)}
                                 className="px-[10px] py-[5px]"
@@ -102,7 +172,7 @@ const MultipleItemsCard = ({ item, innerIndex, cartItem, onAddToCart, onIncremen
                     <ScrollView
                         stickyHeaderIndices={[0]}
                         // StickyHeaderComponent={() => <Text className="text-center text-lg font-semibold text-black mb-2 ">{item?.name}</Text>}
-                        className={`bg-white w-[95%] rounded-xl border-y-4 border-primary ${item?.description && item?.description !== "" ? 'max-h-[95%]' : 'max-h-[70%]'}`}
+                        className={`bg-white w-[95%] rounded-xl border-y-4 border-primary ${(selectedVariant ? selectedVariant?.variantDescription : item?.description) && (selectedVariant ? selectedVariant?.variantDescription : item?.description) !== "" ? 'max-h-[95%]' : 'max-h-[70%]'}`}
                         contentContainerStyle={{
                             alignItems: "center",
                             justifyContent: "center",
@@ -147,11 +217,11 @@ const MultipleItemsCard = ({ item, innerIndex, cartItem, onAddToCart, onIncremen
                         </View>
 
                         {/* Description */}
-                        {item?.description && item?.description !== "" && (
+                        {(selectedVariant ? selectedVariant?.variantDescription : item?.description) && (selectedVariant ? selectedVariant?.variantDescription : item?.description) !== "" && (
                             <>
                                 <Text className="text-center font-bold text-base">Description</Text>
                                 <View className="border border-gray-300 rounded-xl w-full p-3">
-                                    <Text className="text-sm text-gray-700">{item?.description}</Text>
+                                    <Text className="text-sm text-gray-700">{(selectedVariant ? selectedVariant?.variantDescription : item?.description)}</Text>
                                 </View>
                             </>
                         )}
