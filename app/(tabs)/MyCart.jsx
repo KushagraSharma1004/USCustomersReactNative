@@ -210,15 +210,35 @@ const MyCart = () => {
   // Delete cart items that are not in the vendor's current list
   useEffect(() => {
     const removeInvalidCartItems = async () => {
-      if (!allItemsList.length || !cartItems) return;
-
-      const vendorItemIds = allItemsList.map(item => item.id);
+      if (!allItemsList.length || !cartItems || Object.keys(cartItems).length === 0) return;
+  
+      // Create a map of all valid item IDs (base items + variants)
+      const validItemIds = new Set();
+  
+      allItemsList.forEach(item => {
+        // Add base item ID
+        validItemIds.add(item.id);
+  
+        // Add all variant IDs if they exist
+        if (item.variants && Array.isArray(item.variants)) {
+          item.variants.forEach(variant => {
+            if (variant.id) {
+              validItemIds.add(variant.id);
+              validItemIds.add(`${item.id}_${variant.id}`); // Include unique ID for variant items
+            }
+          });
+        }
+      });
+  
       const cartItemIds = Object.keys(cartItems);
-
-      const invalidItemIds = cartItemIds.filter(cartId => !vendorItemIds.includes(cartId));
-
+      const invalidItemIds = cartItemIds.filter(cartId => {
+        const cartItem = cartItems[cartId];
+        // Check if cart item is valid by matching baseItemId or variantId
+        return !validItemIds.has(cartId) && !validItemIds.has(cartItem.baseItemId);
+      });
+  
       if (invalidItemIds.length === 0) return;
-
+  
       try {
         const deletePromises = invalidItemIds.map(itemId => {
           const docRef = doc(db, 'customers', customerMobileNumber, 'cart', vendorMobileNumber, 'items', itemId);
@@ -231,9 +251,9 @@ const MyCart = () => {
         console.error('Error removing invalid cart items:', error);
       }
     };
-
+  
     removeInvalidCartItems();
-  }, [allItemsList, cartItems]);
+  }, [allItemsList, cartItems, customerMobileNumber, vendorMobileNumber]);
 
   useEffect(() => {
     fetchVendorItemList()
@@ -294,7 +314,27 @@ const MyCart = () => {
     setFilteredItemsList(filtered);
   }, [searchQuery, allItemsList]);
 
-  const handleAddToCartWithUpdate = async (item) => {
+  // Replace the handleAddToCartWithUpdate function with this:
+  const handleAddToCartWithUpdate = async (item, selectedVariant) => {
+    // Create cart item data - Use variant ID for variants, item ID for regular items
+    const cartItemId = selectedVariant ? selectedVariant.id : item.id;
+
+    const cartItemData = {
+      id: cartItemId,
+      name: selectedVariant ? `${item.name} - ${selectedVariant.variantName}` : item.name,
+      price: selectedVariant ? selectedVariant.prices[0].variantSellingPrice : item.prices[0].sellingPrice,
+      prices: selectedVariant ? [{ mrp: selectedVariant?.prices?.[0]?.variantMrp, sellingPrice: selectedVariant?.prices?.[0]?.variantSellingPrice, price: selectedVariant?.prices?.[0]?.variantPrice, measurement: selectedVariant?.prices?.[0]?.variantMeasurement }] : item.prices,
+      measurement: selectedVariant ? selectedVariant.prices[0].variantMeasurement : item.prices[0].measurement,
+      quantity: 1,
+      stock: selectedVariant ? selectedVariant.variantStock : item.stock,
+      image: item?.images?.[0] || [],
+      variantId: selectedVariant ? selectedVariant.id : '', // Track variant ID
+      variantName: selectedVariant ? selectedVariant.variantName : '',
+      baseItemId: item.id, // Always track the base item ID
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
     try {
       const itemRef = doc(
         db,
@@ -303,7 +343,7 @@ const MyCart = () => {
         "cart",
         vendorMobileNumber,
         "items",
-        item.id
+        cartItemId // Use the unique ID
       );
 
       const itemSnap = await getDoc(itemRef);
@@ -314,19 +354,9 @@ const MyCart = () => {
           updatedAt: new Date(),
         });
       } else {
-        await setDoc(itemRef, {
-          name: item.name,
-          price: item.prices[0].sellingPrice,
-          measurement: item.prices[0].measurement,
-          quantity: 1,
-          stock: item.stock,
-          image: item?.images?.[0] || null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
+        await setDoc(itemRef, cartItemData);
       }
 
-      // Refresh cart items after operation
       await fetchCartItems();
     } catch (error) {
       console.error("Error adding to cart:", error);
@@ -334,6 +364,7 @@ const MyCart = () => {
     }
   };
 
+  // Update increment function
   const handleIncrementWithUpdate = async (itemId) => {
     try {
       const itemRef = doc(db, "customers", customerMobileNumber, "cart", vendorMobileNumber, "items", itemId);
@@ -341,28 +372,24 @@ const MyCart = () => {
         quantity: increment(1),
         updatedAt: new Date(),
       });
-
-      // Refresh cart items after operation
       await fetchCartItems();
     } catch (error) {
       console.error("Error incrementing:", error);
     }
   };
 
+  // Update decrement function
   const handleDecrementWithUpdate = async (itemId, currentQty) => {
     try {
       const itemRef = doc(db, "customers", customerMobileNumber, "cart", vendorMobileNumber, "items", itemId);
-
       if (currentQty <= 1) {
-        await deleteDoc(itemRef); // remove completely if qty 0
+        await deleteDoc(itemRef);
       } else {
         await updateDoc(itemRef, {
           quantity: increment(-1),
           updatedAt: new Date(),
         });
       }
-
-      // Refresh cart items after operation
       await fetchCartItems();
     } catch (error) {
       console.error("Error decrementing:", error);
@@ -561,13 +588,13 @@ const MyCart = () => {
       });
 
       await Promise.all(deletePromises);
-      
+
       const vendorRef = doc(db, 'users', vendorMobileNumber)
-      
+
       try {
-        if(Number(vendorFullData?.todaysOrdersCount || 0) > 9){
+        if (Number(vendorFullData?.todaysOrdersCount || 0) > 9) {
           // Check balance first, then use increment
-          if(Number(vendorFullData?.balance || 0) - 0.50 >= 0){
+          if (Number(vendorFullData?.balance || 0) - 0.50 >= 0) {
             await updateDoc(vendorRef, {
               balance: increment(-0.50),
               todaysOrdersCount: increment(1)
@@ -626,7 +653,7 @@ const MyCart = () => {
       setIsRatingModalVisible(false);
       setRating(0);
       setRatingComment('');
-      if(isVendorVisiting){
+      if (isVendorVisiting) {
         router.push(`/Vendors/?vendor=${encodeURIComponent(localStorage.getItem('vendor'))}&isVendorVisiting=${encodeURIComponent(encryptData('true'))}`)
       } else {
         router.push(`/Vendors/?vendor=${encodeURIComponent(localStorage.getItem('vendor'))}`)
@@ -663,12 +690,12 @@ const MyCart = () => {
               </TouchableOpacity>
               <TouchableOpacity
                 className='flex-1 p-[10px] rounded-[10px] bg-[#ccc]'
-                onPress={() => { 
+                onPress={() => {
                   setIsRatingModalVisible(false);
-                  if(isVendorVisiting){
-                    router.push(`/Vendors/?vendor=${encodeURIComponent(localStorage.getItem('vendor'))}&isVendorVisiting=${encodeURIComponent(encryptData('true'))}`) 
+                  if (isVendorVisiting) {
+                    router.push(`/Vendors/?vendor=${encodeURIComponent(localStorage.getItem('vendor'))}&isVendorVisiting=${encodeURIComponent(encryptData('true'))}`)
                   } else {
-                    router.push(`/Vendors/?vendor=${encodeURIComponent(localStorage.getItem('vendor'))}`) 
+                    router.push(`/Vendors/?vendor=${encodeURIComponent(localStorage.getItem('vendor'))}`)
                   }
                 }}
               >
@@ -687,7 +714,7 @@ const MyCart = () => {
         <Image style={{ height: 300, width: 300 }} source={require('../../assets/images/emptyCartImage.png')} className='rounded-[10px]' />
         <Text className='text-[20px] font-bold text-primaryRed' >Your cart is empty</Text>
         <TouchableOpacity onPress={() => {
-          if(isVendorVisiting){
+          if (isVendorVisiting) {
             router.push(`/Vendors/?vendor=${encodeURIComponent(localStorage.getItem('vendor'))}&isVendorVisiting=${encodeURIComponent(encryptData('true'))}`)
           } else {
             router.push(`/Vendors/?vendor=${encodeURIComponent(localStorage.getItem('vendor'))}`)
@@ -801,27 +828,49 @@ const MyCart = () => {
         contentContainerStyle={{ paddingHorizontal: 5, gap: 3 }}
       >
         <FlashList
-          data={filteredItemsList}
-          renderItem={({ item }) => {
-            const cartItemIds = Object.keys(cartItems);
-            if (!cartItemIds.includes(item.id)) return null
+          data={Object.values(cartItems)} // Use cart items directly as data source
+          // In the FlashList, make sure you're passing cartItems correctly:
+          renderItem={({ item: cartItem }) => {
+            // Find the corresponding base item from vendor's inventory
+            const baseItem = allItemsList.find(dbItem => {
+              // For regular items
+              if (dbItem.id === cartItem.id && (!cartItem.variantId || cartItem.variantId === '')) {
+                return true;
+              }
+              // For variant items - find the base item that contains this variant
+              if (cartItem.variantId && cartItem.variantId !== '') {
+                if (dbItem.variants) {
+                  return dbItem.variants.some(variant => variant.id === cartItem.variantId);
+                }
+              }
+              return false;
+            });
+          
+            if (!baseItem) {
+              console.log('❌ No base item found for cart item:', cartItem);
+              return null;
+            }
+          
             return (
               <ItemCard
-                item={item}
-                cartItem={cartItems[item.id] || null}
+                key={cartItem.id}
+                item={baseItem}
+                cartItems={cartItems}
                 onAddToCart={handleAddToCartWithUpdate}
                 onIncrement={handleIncrementWithUpdate}
                 onDecrement={handleDecrementWithUpdate}
                 isStockVisible={false}
+                isVariantsSelectorDisabled={true}
                 offerBadge={selectedOffers.some(offerId => {
                   const offer = applicableOffers.find(o => o.id === offerId);
-                  return offer?.applicableItems?.some(appItem => appItem.id === item.id);
+                  return offer?.applicableItems?.some(appItem => appItem.id === baseItem.id);
                 })}
-
+                variantId={cartItem.variantId} // Pass the variantId from cartItem
               />
-            )
+            );
           }}
-          keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
+          keyExtractor={(cartItem) => cartItem.id?.toString() || Math.random().toString()}
+          estimatedItemSize={200}
         />
 
         {vendorOffers && vendorOffers.length !== 0 && <View className='w-full px-[10px] py-[5px] rounded-[5px] bg-primaryGreen border' >

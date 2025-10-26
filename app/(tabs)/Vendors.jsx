@@ -294,7 +294,8 @@ const Vendors = () => {
     return () => unsubscribe(); // cleanup on unmount
   }, [vendorMobileNumber]);
 
-  const handleAddToCartWithUpdate = async (item) => {
+  // Update the handleAddToCartWithUpdate function
+  const handleAddToCartWithUpdate = async (item, selectedVariant) => {
     if (!fromCustomisedQR) {
       if (!customerMobileNumber || customerMobileNumber.length !== 10 || fromQR && decryptData(localStorage.getItem('customerMobileNumber')).length !== 10) {
         alert('Please Login/SignUp to continue.')
@@ -305,36 +306,45 @@ const Vendors = () => {
         setCustomerMobileNumber(decryptData(localStorage.getItem('customerMobileNumber')))
       }
     }
-    const isGuest = !customerMobileNumber || customerMobileNumber.length !== 10 || (fromCustomisedQR && !customerMobileNumber);
-    if (isGuest) {
-      // Get existing cart from localStorage
-      let localCart = JSON.parse(localStorage.getItem('cartItems') || '{}');
 
-      // Use vendorMobileNumber as key
+    const isGuest = !customerMobileNumber || customerMobileNumber.length !== 10 || (fromCustomisedQR && !customerMobileNumber);
+
+    // Create cart item data - Use variant ID for variants, item ID for regular items
+    const cartItemId = selectedVariant ? selectedVariant.id.trim() : item.id;
+    console.log(cartItemId)
+
+    const cartItemData = {
+      id: cartItemId,
+      name: selectedVariant ? `${item.name} - ${selectedVariant.variantName}` : item.name,
+      price: selectedVariant ? selectedVariant.prices[0].variantSellingPrice : item.prices[0].sellingPrice,
+      prices: selectedVariant ? [{ mrp: selectedVariant?.prices?.[0]?.variantMrp, sellingPrice: selectedVariant?.prices?.[0]?.variantSellingPrice, price: selectedVariant?.prices?.[0]?.variantPrice, measurement: selectedVariant?.prices?.[0]?.variantMeasurement }] : item.prices,
+      measurement: selectedVariant ? selectedVariant.prices[0].variantMeasurement : item.prices[0].measurement,
+      quantity: 1,
+      stock: selectedVariant ? selectedVariant.variantStock : item.stock,
+      image: item?.images?.[0] || [],
+      variantId: selectedVariant ? selectedVariant.id : '', // Track variant ID
+      variantName: selectedVariant ? selectedVariant.variantName : '',
+      baseItemId: item.id, // Always track the base item ID
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    if (isGuest) {
+      let localCart = JSON.parse(localStorage.getItem('cartItems') || '{}');
       if (!localCart[vendorMobileNumber]) localCart[vendorMobileNumber] = {};
 
-      if (localCart[vendorMobileNumber][item.id]) {
-        localCart[vendorMobileNumber][item.id].quantity += 1;
-        localCart[vendorMobileNumber][item.id].updatedAt = new Date();
+      if (localCart[vendorMobileNumber][cartItemId]) {
+        localCart[vendorMobileNumber][cartItemId].quantity += 1;
+        localCart[vendorMobileNumber][cartItemId].updatedAt = new Date();
       } else {
-        localCart[vendorMobileNumber][item.id] = {
-          id: item.id,
-          name: item.name,
-          price: item.prices[0].sellingPrice,
-          prices: item.prices,
-          measurement: item.prices[0].measurement,
-          quantity: 1,
-          stock: item.stock,
-          image: item?.images?.[0] || null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
+        localCart[vendorMobileNumber][cartItemId] = cartItemData;
       }
 
       localStorage.setItem('cartItems', JSON.stringify(localCart));
-      setCartItemsForCustomisedQR(localCart); // Update state
+      setCartItemsForCustomisedQR(localCart);
       return;
     }
+
     try {
       const itemRef = doc(
         db,
@@ -343,7 +353,7 @@ const Vendors = () => {
         "cart",
         vendorMobileNumber,
         "items",
-        item.id
+        cartItemId // Use the unique ID
       );
 
       const itemSnap = await getDoc(itemRef);
@@ -354,20 +364,9 @@ const Vendors = () => {
           updatedAt: new Date(),
         });
       } else {
-        await setDoc(itemRef, {
-          name: item.name,
-          price: item.prices[0].sellingPrice,
-          prices: item.prices,
-          measurement: item.prices[0].measurement,
-          quantity: 1,
-          stock: item.stock,
-          image: item?.images?.[0] || null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
+        await setDoc(itemRef, cartItemData);
       }
 
-      // Refresh cart items after operation
       await fetchCartItems();
     } catch (error) {
       console.error("Error adding to cart:", error);
@@ -375,8 +374,10 @@ const Vendors = () => {
     }
   };
 
+  // Update increment function
   const handleIncrementWithUpdate = async (itemId) => {
     const isGuest = !customerMobileNumber || customerMobileNumber.length !== 10 || (fromCustomisedQR && !customerMobileNumber);
+
     if (isGuest) {
       let localCart = JSON.parse(localStorage.getItem('cartItems') || '{}');
       if (localCart[vendorMobileNumber] && localCart[vendorMobileNumber][itemId]) {
@@ -387,22 +388,23 @@ const Vendors = () => {
       }
       return;
     }
+
     try {
       const itemRef = doc(db, "customers", customerMobileNumber, "cart", vendorMobileNumber, "items", itemId);
       await updateDoc(itemRef, {
         quantity: increment(1),
         updatedAt: new Date(),
       });
-
-      // Refresh cart items after operation
       await fetchCartItems();
     } catch (error) {
       console.error("Error incrementing:", error);
     }
   };
 
+  // Update decrement function
   const handleDecrementWithUpdate = async (itemId, currentQty) => {
     const isGuest = !customerMobileNumber || customerMobileNumber.length !== 10 || (fromCustomisedQR && !customerMobileNumber);
+
     if (isGuest) {
       let localCart = JSON.parse(localStorage.getItem('cartItems') || '{}');
       if (localCart[vendorMobileNumber] && localCart[vendorMobileNumber][itemId]) {
@@ -417,19 +419,17 @@ const Vendors = () => {
       }
       return;
     }
+
     try {
       const itemRef = doc(db, "customers", customerMobileNumber, "cart", vendorMobileNumber, "items", itemId);
-
       if (currentQty <= 1) {
-        await deleteDoc(itemRef); // remove completely if qty 0
+        await deleteDoc(itemRef);
       } else {
         await updateDoc(itemRef, {
           quantity: increment(-1),
           updatedAt: new Date(),
         });
       }
-
-      // Refresh cart items after operation
       await fetchCartItems();
     } catch (error) {
       console.error("Error decrementing:", error);
@@ -1008,7 +1008,7 @@ const Vendors = () => {
                                     <MultipleItemsCard
                                       item={groupedItem}
                                       innerIndex={sortedNameGroup.length - groupedItemIndex}
-                                      cartItem={cartSource[groupedItem.id] || null}
+                                      cartItem={cartSource}
                                       onAddToCart={handleAddToCartWithUpdate}
                                       onIncrement={handleIncrementWithUpdate}
                                       onDecrement={handleDecrementWithUpdate}
@@ -1028,7 +1028,7 @@ const Vendors = () => {
                           <View key={item.id} className={`w-full bg-[white] gap-[3px] ${section.categoryName !== 'Uncategorized' ? 'bg-[#00000020] border-l-[10px] border-wheat' : ''}`}>
                             <ItemCard
                               item={item}
-                              cartItem={cartSource[item.id] || null}
+                              cartItems={cartSource}
                               onAddToCart={handleAddToCartWithUpdate}
                               onIncrement={handleIncrementWithUpdate}
                               onDecrement={handleDecrementWithUpdate}
@@ -1056,13 +1056,13 @@ const Vendors = () => {
 
       {isVendorVisiting && (
         <TouchableOpacity
-        className={`absolute z-[10] bottom-[5px] left-[0px] p-[10px] items-center justify-center rounded-r-[5px] bg-wheat`}
-        onPress={() => router.push(`/MyCart?isVendorVisiting=${encodeURIComponent(encryptData('true'))}`)}
-      >
-        <Image style={{height:30, width:30}} source={require('../../assets/images/myCartImage.png')}/>
-        <Text className='text-[10px]' >Items: ({cartCount})</Text>
-        <Text className='text-[10px]' >Total: ₹{cartTotal}</Text>
-      </TouchableOpacity>
+          className={`absolute z-[10] bottom-[5px] left-[0px] p-[10px] items-center justify-center rounded-r-[5px] bg-wheat`}
+          onPress={() => router.push(`/MyCart?isVendorVisiting=${encodeURIComponent(encryptData('true'))}`)}
+        >
+          <Image style={{ height: 30, width: 30 }} source={require('../../assets/images/myCartImage.png')} />
+          <Text className='text-[10px]' >Items: ({cartCount})</Text>
+          <Text className='text-[10px]' >Total: ₹{cartTotal}</Text>
+        </TouchableOpacity>
       )}
 
       {/* ---- Search Icon ----*/}
