@@ -9,6 +9,7 @@ const MultipleItemsCard = ({ item, innerIndex, cartItems, onAddToCart, onIncreme
     const [selectedVariant, setSelectedVariant] = useState(
         variantId ? item?.variants?.find(variant => variant.id === variantId) || null : item?.variants?.[item?.variants?.length - 1] || null
     );
+    
     const getQuantity = () => {
         if (!cartItems || Object.keys(cartItems).length === 0) {
             return 0;

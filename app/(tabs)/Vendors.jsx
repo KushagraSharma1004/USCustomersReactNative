@@ -1008,7 +1008,7 @@ const Vendors = () => {
                                     <MultipleItemsCard
                                       item={groupedItem}
                                       innerIndex={sortedNameGroup.length - groupedItemIndex}
-                                      cartItem={cartSource}
+                                      cartItems={cartSource}
                                       onAddToCart={handleAddToCartWithUpdate}
                                       onIncrement={handleIncrementWithUpdate}
                                       onDecrement={handleDecrementWithUpdate}
