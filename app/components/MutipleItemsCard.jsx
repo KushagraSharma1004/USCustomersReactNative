@@ -9,7 +9,7 @@ const MultipleItemsCard = ({ item, innerIndex, cartItems, onAddToCart, onIncreme
     const [selectedVariant, setSelectedVariant] = useState(
         variantId ? item?.variants?.find(variant => variant.id === variantId) || null : item?.variants?.[item?.variants?.length - 1] || null
     );
-    
+
     const getQuantity = () => {
         if (!cartItems || Object.keys(cartItems).length === 0) {
             return 0;
@@ -140,18 +140,27 @@ const MultipleItemsCard = ({ item, innerIndex, cartItems, onAddToCart, onIncreme
                                             keyExtractor={(item, index) => index.toString()}
                                             renderItem={({ item: variant }) => (
                                                 <TouchableOpacity
-                                                    disabled={Number(variant?.variantStock) === 0}
                                                     onPress={() => {
                                                         if (Number(variant?.variantStock) === 0) {
-                                                            return;
+                                                            return
                                                         }
+                                                        // if (variant.value === item?.name) {
+                                                        //   setSelectedVariant(null);
+                                                        // } else {
                                                         setSelectedVariant(variant);
+                                                        // }
                                                         setIsDropdownVisible(false);
                                                     }}
-                                                    className={`py-[8px] px-[10px] border-b border-gray-200 ${Number(variant?.variantStock) === 0 ? 'opacity-30' : ''}`}
+                                                    className="py-[8px] px-[10px] border-b border-gray-200 flex-row"
                                                 >
-                                                    <Text className={`text-[16px] font-bold text-center text-black ${Number(variant?.variantStock) === 0 && 'line-through'}`}>
+                                                    <Text className={`text-[12px] text-black text-center absolute left-[0px] top-[45%] ${Number(variant.variantStock) === 0 ? 'text-primaryRed line-through' : ''}`}>
+                                                        {variant?.prices?.[0].variantSellingPrice}/{variant?.prices?.[0]?.variantMeasurement}
+                                                    </Text>
+                                                    <Text className={`text-[16px] text-black text-center font-bold ${Number(variant.variantStock) === 0 ? 'text-primaryRed line-through' : ''} flex-1`}>
                                                         {variant.variantName}
+                                                    </Text>
+                                                    <Text className={`text-[12px] text-black text-center absolute right-[0px] top-[45%] ${Number(variant.variantStock) === 0 ? 'text-primaryRed line-through' : ''}`}>
+                                                        {variant.variantStock} (Stk)
                                                     </Text>
                                                 </TouchableOpacity>
                                             )}

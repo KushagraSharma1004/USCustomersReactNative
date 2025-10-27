@@ -157,13 +157,12 @@ const ItemCard = ({ item, cartItems, onAddToCart, onIncrement, onDecrement, isSt
                     className="flex-1 bg-[rgba(0,0,0,0.5)] justify-center items-center"
                     onPress={() => setIsDropdownVisible(false)}
                   >
-                    <View className="bg-white rounded-[5px] w-[80%] max-h-[200px] p-[10px]">
+                    <View className="bg-white rounded-[5px] w-[90%] max-h-[200px] p-[10px]">
                       <FlatList
                         data={item.variants || []}
                         keyExtractor={(item, index) => index.toString()}
                         renderItem={({ item: variant }) => (
                           <TouchableOpacity
-                            // disabled={Number(variant?.variantStock) === 0}
                             onPress={() => {
                               if (Number(variant?.variantStock) === 0) {
                                 return
@@ -175,10 +174,16 @@ const ItemCard = ({ item, cartItems, onAddToCart, onIncrement, onDecrement, isSt
                               // }
                               setIsDropdownVisible(false);
                             }}
-                            className={`py-[8px] px-[10px] border-b border-gray-200 ${Number(variant?.variantStock) === 0 ? 'opacity-30' : ''}`}
+                            className="py-[8px] px-[10px] border-b border-gray-200 flex-row"
                           >
-                            <Text className={`text-[16px] font-bold text-center text-black ${Number(variant?.variantStock) === 0 && 'line-through'}`}>
+                            <Text className={`text-[12px] text-black text-center absolute left-[0px] top-[45%] ${Number(variant.variantStock) === 0 ? 'text-primaryRed line-through' : ''}`}>
+                              {variant?.prices?.[0].variantSellingPrice}/{variant?.prices?.[0]?.variantMeasurement}
+                            </Text>
+                            <Text className={`text-[16px] text-black text-center font-bold ${Number(variant.variantStock) === 0 ? 'text-primaryRed line-through' : ''} flex-1`}>
                               {variant.variantName}
+                            </Text>
+                            <Text className={`text-[12px] text-black text-center absolute right-[0px] top-[45%] ${Number(variant.variantStock) === 0 ? 'text-primaryRed line-through' : ''}`}>
+                              {variant.variantStock} (Stk)
                             </Text>
                           </TouchableOpacity>
                         )}
