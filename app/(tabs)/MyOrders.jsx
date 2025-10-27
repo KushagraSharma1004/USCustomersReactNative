@@ -73,7 +73,7 @@ const MyOrders = () => {
         />
       </View>
       <FlashList
-        data={filteredOrders.sort((a, b) => b.orderTime - a.orderTime)}
+        data={filteredOrders?.sort((a, b) => b.orderTime - a.orderTime) || []}
         renderItem={({ item, index }) => {
           return (
             <View className={`py-[10px] px-[5px] self-center ${item.orderStatus === 'Pending' ? 'bg-[#FFF3CD]' : item.orderStatus === 'Approved' ? 'bg-[#D4EDDA]' : 'bg-[#F8D7DA]'} rounded-[10px] w-full gap-[10px] mb-[3px] border-y-[5px] border-primary`} >

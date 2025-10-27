@@ -39,16 +39,13 @@ const OrderItemCard = ({ item, index }) => {
                 {/* Name + QTY */}
                 <View className="flex-row justify-between items-center w-full px-[7px]">
                     <Text className="flex-1 text-[15px]">{item.name}</Text>
-                    <Text className="text-[11px]">QTY: {item.quantity}</Text>
+                    {item?.variantName && item?.variantName !== '' && <Text className='p-[3px] rounded-[5px] border border-primary text-center' >{item.variantName || ''}</Text>}
                 </View>
 
                 {/* MRP + Subtotal */}
                 <View className="flex-row justify-between items-center w-full px-[7px]">
                     <Text className="text-[12px] line-through text-red-500">MRP: ₹{item.price?.[0].mrp}</Text>
-                    <Text className="text-[14px] text-[#28a745] font-bold">
-                        <Text className="text-[10px] font-normal">Sub Total:</Text> ₹
-                        {item.quantity * item.price?.[0].sellingPrice}
-                    </Text>
+                    <Text className="text-[11px]">QTY: {item.quantity}</Text>
                 </View>
 
                 {/* Price */}
@@ -56,6 +53,10 @@ const OrderItemCard = ({ item, index }) => {
                     <Text className="text-[22px] font-bold text-primary">
                         ₹{item.price?.[0].sellingPrice}/
                         <Text className="text-[12px]">{item.price?.[0].measurement}</Text>
+                    </Text>
+                    <Text className="text-[14px] text-[#28a745] font-bold">
+                        <Text className="text-[10px] font-normal">Sub Total:</Text> ₹
+                        {item.quantity * item.price?.[0].sellingPrice}
                     </Text>
                 </View>
             </View>

@@ -211,14 +211,14 @@ const MyCart = () => {
   useEffect(() => {
     const removeInvalidCartItems = async () => {
       if (!allItemsList.length || !cartItems || Object.keys(cartItems).length === 0) return;
-  
+
       // Create a map of all valid item IDs (base items + variants)
       const validItemIds = new Set();
-  
+
       allItemsList.forEach(item => {
         // Add base item ID
         validItemIds.add(item.id);
-  
+
         // Add all variant IDs if they exist
         if (item.variants && Array.isArray(item.variants)) {
           item.variants.forEach(variant => {
@@ -229,16 +229,16 @@ const MyCart = () => {
           });
         }
       });
-  
+
       const cartItemIds = Object.keys(cartItems);
       const invalidItemIds = cartItemIds.filter(cartId => {
         const cartItem = cartItems[cartId];
         // Check if cart item is valid by matching baseItemId or variantId
         return !validItemIds.has(cartId) && !validItemIds.has(cartItem.baseItemId);
       });
-  
+
       if (invalidItemIds.length === 0) return;
-  
+
       try {
         const deletePromises = invalidItemIds.map(itemId => {
           const docRef = doc(db, 'customers', customerMobileNumber, 'cart', vendorMobileNumber, 'items', itemId);
@@ -251,7 +251,7 @@ const MyCart = () => {
         console.error('Error removing invalid cart items:', error);
       }
     };
-  
+
     removeInvalidCartItems();
   }, [allItemsList, cartItems, customerMobileNumber, vendorMobileNumber]);
 
@@ -458,6 +458,8 @@ const MyCart = () => {
         return;
       }
 
+      let itemData = null
+
       // Prepare items and check stock
       const itemsToOrder = [];
       for (const docSnap of cartSnapshot.docs) {
@@ -466,28 +468,59 @@ const MyCart = () => {
 
         if (cartItem.quantity <= 0) continue;
 
-        const itemRef = doc(db, 'users', vendorMobileNumber, 'list', itemId);
-        const itemDocSnap = await getDoc(itemRef);
-
-        if (!itemDocSnap.exists()) {
-          alert(`Item "${cartItem.name}" is no longer available.`);
-          return;
+        if (cartItem.variantId && cartItem.variantId !== '') {
+          const itemRef = doc(db, 'users', vendorMobileNumber, 'list', cartItem.baseItemId);
+          const itemDocSnap = await getDoc(itemRef);
+          if (!itemDocSnap.exists()) {
+            alert(`Item "${cartItem.name}" is no longer available.`);
+            return;
+          }
+          const itemDataInside = itemDocSnap.data();
+          itemData = itemDataInside;
+          const variant = itemDataInside.variants?.find(v => v.id === cartItem.variantId);
+          if (!variant) {
+            alert(`Variant "${cartItem.name} - ${cartItem.variantName}" is no longer available.`);
+            return;
+          }
+          if (cartItem.quantity > Number(variant.variantStock || 0)) {
+            alert(`Not enough stock for "${cartItem.name}".`);
+            return;
+          }
+          itemsToOrder.push({
+            id: itemId,
+            name: cartItem.name,
+            quantity: cartItem.quantity,
+            price: cartItem.prices,
+            imageURL: itemDataInside.images?.[0] || '',
+            originalStock: itemDataInside.stock || 0,
+            variantId: cartItem.variantId,
+            variantName: cartItem.variantName,
+            baseItemId: cartItem.baseItemId,
+            type: 'variant'
+          });
+        } else {
+          const itemRef = doc(db, 'users', vendorMobileNumber, 'list', itemId);
+          const itemDocSnap = await getDoc(itemRef);
+          if (!itemDocSnap.exists()) {
+            alert(`Item "${cartItem.name}" is no longer available.`);
+            return;
+          }
+          const itemDataInside = itemDocSnap.data();
+          itemData = itemDataInside
+          if (cartItem.quantity > Number(itemDataInside.stock || 0)) {
+            alert(`Not enough stock for "${cartItem.name}".`);
+            return;
+          }
+          itemsToOrder.push({
+            id: itemId,
+            name: cartItem.name,
+            quantity: cartItem.quantity,
+            price: cartItem.prices,
+            imageURL: itemDataInside.images?.[0] || '',
+            originalStock: itemDataInside.stock || 0,
+          });
         }
 
-        const itemData = itemDocSnap.data();
-        if (cartItem.quantity > (itemData.stock || 0)) {
-          alert(`Not enough stock for "${cartItem.name}". Available: ${itemData.stock}, Ordered: ${cartItem.quantity}`);
-          return;
-        }
-
-        itemsToOrder.push({
-          id: itemId,
-          name: cartItem.name,
-          quantity: cartItem.quantity,
-          price: cartItem.prices,
-          imageURL: itemData.images?.[0] || '',
-          originalStock: itemData.stock || 0,
-        });
       }
 
       if (itemsToOrder.length === 0) {
@@ -521,6 +554,21 @@ const MyCart = () => {
       //   pickupCoordinates: selectedDeliveryMode === 'takeaway' ? { longitude: vendorFullData.vendorLocation?.longitude, latitude: vendorFullData.vendorLocation?.latitude } : {},
       //   customerComment: isOrderCommentAdded ? orderComment : ''
       // };
+      const itemsToSendWithOrder = itemsToOrder.map(({ id, name, quantity, price, imageURL, variantId, baseItemId, variantName }) => {
+        const item = {
+          id,
+          name,
+          quantity,
+          price,
+          imageURL
+        };
+        if (variantId && variantId !== '') {
+          item.variantId = variantId;
+          item.variantName = variantName;
+          item.baseItemId = baseItemId;
+        }
+        return item;
+      });
       const orderDetails = {
         address: customerAddress,
         businessName: vendorFullData?.businessName || '',
@@ -528,9 +576,7 @@ const MyCart = () => {
         customerName: customerFullData?.customerName || '',
         deliveryCharge: Number(vendorFullData.freeDeliveryAboveAmount || 0) !== 0 ? Number(vendorFullData.freeDeliveryAboveAmount) - (cartTotal - totalDiscount) > 0 ? deliveryCharge : 0 : deliveryCharge,
         deliveryMode: selectedDeliveryMode === 'homeDelivery' ? 'Home Delivery' : 'Takeaway/Pickup',
-        items: itemsToOrder.map(({ id, name, quantity, price, imageURL }) => ({
-          id, name, quantity, price, imageURL
-        })),
+        items: itemsToSendWithOrder,
         orderStatus: 'Pending',
         orderTime: new Date(),
         totalAmount: finalAmount || 0, // Use finalAmount instead of cartTotal
@@ -579,8 +625,41 @@ const MyCart = () => {
 
       // Update stock in vendor items
       for (const item of itemsToOrder) {
-        const itemRef = doc(db, 'users', vendorMobileNumber, 'list', item.id);
-        await updateDoc(itemRef, { stock: item.originalStock - item.quantity });
+        // Get the cart item to access baseItemId
+        const cartItem = cartItems[item.id];
+
+        // For variants, use baseItemId; for regular items, use the item ID directly
+        const documentId = cartItem.variantId ? cartItem.baseItemId : item.id;
+        const itemRef = doc(db, 'users', vendorMobileNumber, 'list', documentId);
+
+        if (cartItem.variantId) {
+          // For variants - we need to read, modify, then update
+          const itemDoc = await getDoc(itemRef);
+          if (!itemDoc.exists()) {
+            console.error('Item document not found:', documentId);
+            continue;
+          }
+
+          const itemData = itemDoc.data();
+          const updatedVariants = itemData.variants.map(variant => {
+            if (variant.id === cartItem.variantId) {
+              return {
+                ...variant,
+                variantStock: Number(variant.variantStock) - item.quantity
+              };
+            }
+            return variant;
+          });
+
+          await updateDoc(itemRef, {
+            variants: updatedVariants
+          });
+        } else {
+          // For regular items - use Firestore increment for atomic update
+          await updateDoc(itemRef, {
+            stock: increment(-item.quantity)
+          });
+        }
       }
 
       const deletePromises = cartSnapshot.docs.map((document) => {
@@ -846,12 +925,12 @@ const MyCart = () => {
               }
               return false;
             });
-          
+
             if (!baseItem) {
               console.log('❌ No base item found for cart item:', cartItem);
               return null;
             }
-          
+
             return (
               <ItemCard
                 key={cartItem.id}
