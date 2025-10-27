@@ -315,7 +315,8 @@ const Vendors = () => {
 
     const cartItemData = {
       id: cartItemId,
-      name: selectedVariant ? `${item.name} - ${selectedVariant.variantName}` : item.name,
+      // name: selectedVariant ? `${item.name} - ${selectedVariant.variantName}` : item.name,
+      name: item.name,
       price: selectedVariant ? selectedVariant.prices[0].variantSellingPrice : item.prices[0].sellingPrice,
       prices: selectedVariant ? [{ mrp: selectedVariant?.prices?.[0]?.variantMrp, sellingPrice: selectedVariant?.prices?.[0]?.variantSellingPrice, price: selectedVariant?.prices?.[0]?.variantPrice, measurement: selectedVariant?.prices?.[0]?.variantMeasurement }] : item.prices,
       measurement: selectedVariant ? selectedVariant.prices[0].variantMeasurement : item.prices[0].measurement,
