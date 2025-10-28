@@ -6,7 +6,7 @@ const ItemCard = ({ item, cartItems, onAddToCart, onIncrement, onDecrement, isSt
   const [isItemImageModalVisible, setIsItemImageModalVisible] = useState(false)
   const [selectedImage, setSelectedImage] = useState(item?.images ? item?.images?.[0] : null)
   const [selectedVariant, setSelectedVariant] = useState(
-    variantId ? item?.variants?.find(variant => variant.id === variantId) || null : item?.variants?.[item?.variants?.length - 1] || null
+    variantId ? item?.variants.filter((variant) => variant.hidden === false)?.find(variant => variant.id === variantId) || null : item?.variants?.[item?.variants?.length - 1] || null
   );
 
   const getQuantity = () => {
@@ -40,7 +40,7 @@ const ItemCard = ({ item, cartItems, onAddToCart, onIncrement, onDecrement, isSt
 
   useEffect(() => {
     if (item?.variants && item.variants.length > 0) {
-      const availableVariants = item.variants.filter((variant) => Number(variant?.variantStock || 0) !== 0);
+      const availableVariants = item.variants.filter((variant) => variant.hidden === false).filter((variant) => Number(variant?.variantStock || 0) !== 0);
       // Prioritize variantId from props, then fall back to current variant or first available
       const currentVariant =
         variantId
@@ -135,7 +135,7 @@ const ItemCard = ({ item, cartItems, onAddToCart, onIncrement, onDecrement, isSt
                 >
                   <View className="bg-white rounded-[5px] w-[90%] max-h-[200px] p-[10px]">
                     <FlatList
-                      data={item.variants || []}
+                      data={item.variants.filter((variant) => variant.hidden === false) || []}
                       keyExtractor={(item, index) => index.toString()}
                       renderItem={({ item: variant }) => (
                         <TouchableOpacity
@@ -198,64 +198,6 @@ const ItemCard = ({ item, cartItems, onAddToCart, onIncrement, onDecrement, isSt
             <Text className="text-[12px]">{selectedVariant ? selectedVariant.prices[0].variantMeasurement : item.prices[0].measurement}</Text>
           </Text>
           <View className='flex-row' >
-            {/* {item?.variants?.length > 0 && (
-              <View className="mr-[5px] rounded-[5px] border border-primary items-center justify-center min-w-[60px] max-w-[60px]">
-                <TouchableOpacity
-                  disabled={isVariantsSelectorDisabled}
-                  onPress={() => setIsDropdownVisible(true)}
-                  className="bg-white rounded-[5px] justify-between items-center flex-row flex-1 w-full px-[3px]"
-                >
-                  <Text className="text-[10px] text-black">
-                    {selectedVariant ? selectedVariant.variantName.slice(0, 10) + (selectedVariant.variantName.length > 10 ? '...' : '') : item?.name}
-                  </Text>
-                  {!isVariantsSelectorDisabled && <Text className='text-[14px]' >{'>'}</Text>}
-                </TouchableOpacity>
-                <Modal
-                  visible={isDropdownVisible}
-                  transparent={true}
-                  animationType="fade"
-                  onRequestClose={() => setIsDropdownVisible(false)}
-                >
-                  <TouchableOpacity
-                    className="flex-1 bg-[rgba(0,0,0,0.5)] justify-center items-center"
-                    onPress={() => setIsDropdownVisible(false)}
-                  >
-                    <View className="bg-white rounded-[5px] w-[90%] max-h-[200px] p-[10px]">
-                      <FlatList
-                        data={item.variants || []}
-                        keyExtractor={(item, index) => index.toString()}
-                        renderItem={({ item: variant }) => (
-                          <TouchableOpacity
-                            onPress={() => {
-                              if (Number(variant?.variantStock) === 0) {
-                                return
-                              }
-                              // if (variant.value === item?.name) {
-                              //   setSelectedVariant(null);
-                              // } else {
-                              setSelectedVariant(variant);
-                              // }
-                              setIsDropdownVisible(false);
-                            }}
-                            className="py-[8px] px-[10px] border-b border-gray-200 flex-row"
-                          >
-                            <Text className={`text-[12px] text-black text-center absolute left-[0px] top-[45%] ${Number(variant.variantStock) === 0 ? 'text-primaryRed line-through' : ''}`}>
-                              {variant?.prices?.[0].variantSellingPrice}/{variant?.prices?.[0]?.variantMeasurement}
-                            </Text>
-                            <Text className={`text-[16px] text-black text-center font-bold ${Number(variant.variantStock) === 0 ? 'text-primaryRed line-through' : ''} flex-1`}>
-                              {variant.variantName}
-                            </Text>
-                            <Text className={`text-[12px] text-black text-center absolute right-[0px] top-[45%] ${Number(variant.variantStock) === 0 ? 'text-primaryRed line-through' : ''}`}>
-                              {variant.variantStock} (Stk)
-                            </Text>
-                          </TouchableOpacity>
-                        )}
-                      />
-                    </View>
-                  </TouchableOpacity>
-                </Modal>
-              </View>
-            )} */}
             {quantity === 0 ? (
               <TouchableOpacity
                 onPress={() => onAddToCart(item, selectedVariant)}

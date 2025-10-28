@@ -7,7 +7,7 @@ const MultipleItemsCard = ({ item, innerIndex, cartItems, onAddToCart, onIncreme
     const [selectedImage, setSelectedImage] = useState(item?.images?.[0] || null)
     const imageUri = item?.images && Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : null;
     const [selectedVariant, setSelectedVariant] = useState(
-        variantId ? item?.variants?.find(variant => variant.id === variantId) || null : item?.variants?.[item?.variants?.length - 1] || null
+        variantId ? item?.variants.filter((variant) => variant.hidden === false)?.find(variant => variant.id === variantId) || null : item?.variants?.[item?.variants?.length - 1] || null
     );
 
     const getQuantity = () => {
@@ -40,7 +40,7 @@ const MultipleItemsCard = ({ item, innerIndex, cartItems, onAddToCart, onIncreme
 
     useEffect(() => {
         if (item?.variants && item.variants.length > 0) {
-            const availableVariants = item.variants.filter((variant) => Number(variant?.variantStock || 0) !== 0);
+            const availableVariants = item.variants.filter((variant) => variant.hidden === false).filter((variant) => Number(variant?.variantStock || 0) !== 0);
             // Prioritize variantId from props, then fall back to current variant or first available
             const currentVariant =
                 variantId
@@ -136,7 +136,7 @@ const MultipleItemsCard = ({ item, innerIndex, cartItems, onAddToCart, onIncreme
                                 >
                                     <View className="bg-white rounded-[5px] w-[80%] max-h-[200px] p-[10px]">
                                         <FlatList
-                                            data={item.variants || []}
+                                            data={item.variants.filter((variant) => variant.hidden === false) || []}
                                             keyExtractor={(item, index) => index.toString()}
                                             renderItem={({ item: variant }) => (
                                                 <TouchableOpacity
