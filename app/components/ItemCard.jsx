@@ -107,13 +107,76 @@ const ItemCard = ({ item, cartItems, onAddToCart, onIncrement, onDecrement, isSt
 
       {/* Details Section */}
       <View className="flex-col justify-between items-center h-[120px] flex-1">
-        {/* Name + Stock */}
+
+        {/* Name + Variant */}
         <View className="flex-row justify-between items-center w-full px-[7px]">
           <Text className="text-[16px] max-w-[75%]">{item.name}</Text>
+          {item?.variants?.length > 0 && (
+            <View className="rounded-[5px] border border-primary items-center justify-center min-w-[70px] max-w-[70px] py-[5px]">
+              <TouchableOpacity
+                disabled={isVariantsSelectorDisabled}
+                onPress={() => setIsDropdownVisible(true)}
+                className="bg-white rounded-[5px] justify-between items-center flex-row flex-1 w-full px-[3px]"
+              >
+                <Text className="text-[10px] text-black">
+                  {selectedVariant ? selectedVariant.variantName.slice(0, 12) + (selectedVariant.variantName.length > 12 ? '...' : '') : item?.name}
+                </Text>
+                {!isVariantsSelectorDisabled && <Text className='text-[14px]' >{'>'}</Text>}
+              </TouchableOpacity>
+              <Modal
+                visible={isDropdownVisible}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setIsDropdownVisible(false)}
+              >
+                <TouchableOpacity
+                  className="flex-1 bg-[rgba(0,0,0,0.5)] justify-center items-center"
+                  onPress={() => setIsDropdownVisible(false)}
+                >
+                  <View className="bg-white rounded-[5px] w-[90%] max-h-[200px] p-[10px]">
+                    <FlatList
+                      data={item.variants || []}
+                      keyExtractor={(item, index) => index.toString()}
+                      renderItem={({ item: variant }) => (
+                        <TouchableOpacity
+                          onPress={() => {
+                            if (Number(variant?.variantStock) === 0) {
+                              return
+                            }
+                            // if (variant.value === item?.name) {
+                            //   setSelectedVariant(null);
+                            // } else {
+                            setSelectedVariant(variant);
+                            // }
+                            setIsDropdownVisible(false);
+                          }}
+                          className="py-[8px] px-[10px] border-b border-gray-200 flex-row"
+                        >
+                          <Text className={`text-[12px] text-black text-center absolute left-[0px] top-[45%] ${Number(variant.variantStock) === 0 ? 'text-primaryRed line-through' : ''}`}>
+                            {variant?.prices?.[0].variantSellingPrice}/{variant?.prices?.[0]?.variantMeasurement}
+                          </Text>
+                          <Text className={`text-[16px] text-black text-center font-bold ${Number(variant.variantStock) === 0 ? 'text-primaryRed line-through' : ''} flex-1`}>
+                            {variant.variantName}
+                          </Text>
+                          <Text className={`text-[12px] text-black text-center absolute right-[0px] top-[45%] ${Number(variant.variantStock) === 0 ? 'text-primaryRed line-through' : ''}`}>
+                            {variant.variantStock} (Stk)
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    />
+                  </View>
+                </TouchableOpacity>
+              </Modal>
+            </View>
+          )}
+        </View>
+
+        {/* Stock */}
+        <View className="flex-row justify-end items-center w-full px-[7px]">
           {isStockVisible && <Text className="text-[12px] text-[#8B8000]">Stk: {selectedVariant ? selectedVariant.variantStock : item.stock}</Text>}
         </View>
 
-        {/* MRP + Subtotal */}
+        {/* MRP + Sub-total */}
         <View className="flex-row justify-between items-center w-full px-[7px]">
           <Text className="text-[12px] line-through text-red-500">MRP: ₹{mrp}</Text>
           {quantity !== 0 ? (
@@ -135,7 +198,7 @@ const ItemCard = ({ item, cartItems, onAddToCart, onIncrement, onDecrement, isSt
             <Text className="text-[12px]">{selectedVariant ? selectedVariant.prices[0].variantMeasurement : item.prices[0].measurement}</Text>
           </Text>
           <View className='flex-row' >
-            {item?.variants?.length > 0 && (
+            {/* {item?.variants?.length > 0 && (
               <View className="mr-[5px] rounded-[5px] border border-primary items-center justify-center min-w-[60px] max-w-[60px]">
                 <TouchableOpacity
                   disabled={isVariantsSelectorDisabled}
@@ -192,7 +255,7 @@ const ItemCard = ({ item, cartItems, onAddToCart, onIncrement, onDecrement, isSt
                   </TouchableOpacity>
                 </Modal>
               </View>
-            )}
+            )} */}
             {quantity === 0 ? (
               <TouchableOpacity
                 onPress={() => onAddToCart(item, selectedVariant)}
