@@ -32,6 +32,22 @@ const MultipleItemsCard = ({ item, innerIndex, cartItems, onAddToCart, onIncreme
         }
     };
 
+    const getQuantityForParticularItem = (itemId) => {
+        if (!cartItems || Object.keys(cartItems).length === 0) {
+            return 0;
+        }
+
+        const cartItemsArray = Object.values(cartItems);
+
+        if (itemId) {
+            // For variants, look for cart item with matching variant ID
+            const variantCartItem = cartItemsArray.find(
+                cart => cart?.variantId === itemId
+            );
+            return variantCartItem?.quantity || 0;
+        }
+    };
+
     const quantity = getQuantity();
     const [mrp, setMrp] = useState(item?.prices?.[0]?.mrp || 0)
     const [sellingPrice, setSellingPrice] = useState(item?.prices?.[0]?.sellingPrice || 0)
@@ -188,15 +204,46 @@ const MultipleItemsCard = ({ item, innerIndex, cartItems, onAddToCart, onIncreme
                                                     }}
                                                     className="py-[8px] border-b border-gray-200 flex-row items-center"
                                                 >
-                                                    <Text className={`text-[12px] ${selectedVariant?.id === variant?.id ? 'text-primary' : 'text-black'} leading-none text-center ${Number(variant.variantStock) === 0 ? 'text-primaryRed line-through' : ''}`}>
-                                                        {variant?.prices?.[0].variantSellingPrice}/{variant?.prices?.[0]?.variantMeasurement}
-                                                    </Text>
-                                                    <Text className={`text-[16px] ${selectedVariant?.id === variant?.id ? 'text-primary' : 'text-black'} text-center font-bold ${Number(variant.variantStock) === 0 ? 'text-primaryRed line-through' : ''} flex-1`}>
-                                                        {variant.variantName}
-                                                    </Text>
-                                                    <Text className={`text-[12px] ${selectedVariant?.id === variant?.id ? 'text-primary' : 'text-black'} leading-none text-center ${Number(variant.variantStock) === 0 ? 'text-primaryRed line-through' : ''}`}>
-                                                        {variant.variantStock} (Stk)
-                                                    </Text>
+                                                    <View className='w-full flex-row justify-between' >
+                                                        <View className='gap-[2px]' >
+                                                            <Text className={`text-[12px] ${selectedVariant?.id === variant?.id ? 'text-primary' : 'text-black'} leading-none ${Number(variant.variantStock) === 0 ? 'text-primaryRed line-through' : ''}`}>{variant?.prices?.[0].variantSellingPrice}/{variant?.prices?.[0]?.variantMeasurement}</Text>
+                                                            <Text className={`text-[12px] ${selectedVariant?.id === variant?.id ? 'text-primary' : 'text-[#8B8000]'} leading-none ${Number(variant.variantStock) === 0 ? 'text-primaryRed line-through' : ''}`}>Stk: {variant.variantStock}</Text>
+                                                        </View>
+                                                        <Text className={`text-[16px] ${selectedVariant?.id === variant?.id ? 'text-primary' : 'text-black'} text-center flex-1 font-bold ${Number(variant.variantStock) === 0 ? 'text-primaryRed line-through' : ''} flex-1`}>
+                                                            {variant.variantName}
+                                                        </Text>
+                                                        <>
+                                                            {getQuantityForParticularItem(variant?.id) === 0 ? (
+                                                                <TouchableOpacity
+                                                                    disabled={Number(variant?.variantStock) === 0}
+                                                                    onPress={() => onAddToCart(item, variant)}
+                                                                    className={`${Number(variant?.variantStock) === 0 ? 'bg-[#ccc]' : 'bg-primary'} rounded-[5px] px-[12px] py-[5px] z-[50px]`}
+                                                                >
+                                                                    <Text className="text-[15px] font-bold text-white">Add +</Text>
+                                                                </TouchableOpacity>
+                                                            ) : (
+                                                                <View className="flex-row items-center bg-primary rounded-[5px]">
+                                                                    <TouchableOpacity
+                                                                        disabled={Number(variant?.variantStock) === 0}
+                                                                        onPress={() => onDecrement(variant?.id, getQuantityForParticularItem(variant?.id))}
+                                                                        className="px-[10px] py-[5px]"
+                                                                    >
+                                                                        <Text className="text-white text-[16px]">–</Text>
+                                                                    </TouchableOpacity>
+                                                                    <Text className="text-white text-[14px] font-bold px-[8px]">
+                                                                        {getQuantityForParticularItem(variant?.id)}
+                                                                    </Text>
+                                                                    <TouchableOpacity
+                                                                        disabled={Number(variant?.variantStock) === 0}
+                                                                        onPress={() => onIncrement(variant?.id)}
+                                                                        className="px-[10px] py-[5px]"
+                                                                    >
+                                                                        <Text className="text-white text-[16px]">+</Text>
+                                                                    </TouchableOpacity>
+                                                                </View>
+                                                            )}
+                                                        </>
+                                                    </View>
                                                 </TouchableOpacity>
                                             )}
                                         />
