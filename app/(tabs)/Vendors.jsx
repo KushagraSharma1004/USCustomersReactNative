@@ -311,7 +311,6 @@ const Vendors = () => {
 
     // Create cart item data - Use variant ID for variants, item ID for regular items
     const cartItemId = selectedVariant ? selectedVariant.id.trim() : item.id;
-    console.log(cartItemId)
 
     const cartItemData = {
       id: cartItemId,

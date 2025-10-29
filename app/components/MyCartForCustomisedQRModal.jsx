@@ -197,43 +197,90 @@ const MyCartForCustomisedQRModal = ({ cartItems, cartCount, cartTotal, fetchCart
     }
 
     // Delete cart items that are not in the vendor's current list
+    // useEffect(() => {
+    //     const removeInvalidCartItems = async () => {
+    //         if (!allItemsList.length || !cartItems) return;
+
+    //         const vendorItemIds = allItemsList.map(item => item.id);
+    //         const cartItemIds = Object.keys(cartItems);
+
+    //         // Find invalid cart items (those not in vendor's item list)
+    //         const invalidItemIds = cartItemIds.filter(cartId => !vendorItemIds.includes(cartId));
+
+    //         if (invalidItemIds.length === 0) return;
+
+    //         try {
+    //             // Get cart from localStorage
+    //             const localCart = JSON.parse(localStorage.getItem("cartItems")) || {};
+
+    //             // Remove invalid items for this vendor
+    //             invalidItemIds.forEach(itemId => {
+    //                 if (localCart[vendorMobileNumber] && localCart[vendorMobileNumber][itemId]) {
+    //                     delete localCart[vendorMobileNumber][itemId];
+    //                 }
+    //             });
+
+    //             // Save updated cart back to localStorage
+    //             localStorage.setItem("cartItems", JSON.stringify(localCart));
+
+    //             // Refresh UI
+    //             await fetchCartItems();
+
+    //             console.log("Removed invalid cart items:", invalidItemIds);
+    //         } catch (error) {
+    //             console.error("Error removing invalid cart items:", error);
+    //         }
+    //     };
+
+    //     removeInvalidCartItems();
+    // }, [allItemsList, cartItems, vendorMobileNumber]);
+
     useEffect(() => {
         const removeInvalidCartItems = async () => {
-            if (!allItemsList.length || !cartItems) return;
+            if (!allItemsList.length || !cartItems || Object.keys(cartItems).length === 0) return;
 
-            const vendorItemIds = allItemsList.map(item => item.id);
+            // Create a map of all valid item IDs (base items + variants)
+            const validItemIds = new Set();
+
+            allItemsList.forEach(item => {
+                // Add base item ID
+                validItemIds.add(item.id);
+
+                // Add all variant IDs if they exist
+                if (item.variants && Array.isArray(item.variants)) {
+                    item.variants.forEach(variant => {
+                        if (variant.id) {
+                            validItemIds.add(variant.id);
+                            validItemIds.add(`${item.id}_${variant.id}`); // Include unique ID for variant items
+                        }
+                    });
+                }
+            });
+
             const cartItemIds = Object.keys(cartItems);
-
-            // Find invalid cart items (those not in vendor's item list)
-            const invalidItemIds = cartItemIds.filter(cartId => !vendorItemIds.includes(cartId));
+            const invalidItemIds = cartItemIds.filter(cartId => {
+                const cartItem = cartItems[cartId];
+                // Check if cart item is valid by matching baseItemId or variantId
+                return !validItemIds.has(cartId) && !validItemIds.has(cartItem.baseItemId);
+            });
 
             if (invalidItemIds.length === 0) return;
 
             try {
-                // Get cart from localStorage
-                const localCart = JSON.parse(localStorage.getItem("cartItems")) || {};
-
-                // Remove invalid items for this vendor
-                invalidItemIds.forEach(itemId => {
-                    if (localCart[vendorMobileNumber] && localCart[vendorMobileNumber][itemId]) {
-                        delete localCart[vendorMobileNumber][itemId];
-                    }
+                const deletePromises = invalidItemIds.map(itemId => {
+                    const docRef = doc(db, 'customers', customerMobileNumber, 'cart', vendorMobileNumber, 'items', itemId);
+                    return deleteDoc(docRef);
                 });
-
-                // Save updated cart back to localStorage
-                localStorage.setItem("cartItems", JSON.stringify(localCart));
-
-                // Refresh UI
-                await fetchCartItems();
-
-                console.log("Removed invalid cart items:", invalidItemIds);
+                await Promise.all(deletePromises);
+                await fetchCartItems(); // Refresh cart after deletion
+                console.log('Removed invalid cart items:', invalidItemIds);
             } catch (error) {
-                console.error("Error removing invalid cart items:", error);
+                console.error('Error removing invalid cart items:', error);
             }
         };
 
         removeInvalidCartItems();
-    }, [allItemsList, cartItems, vendorMobileNumber]);
+    }, [allItemsList, cartItems, customerMobileNumber, vendorMobileNumber]);
 
     useEffect(() => {
         fetchVendorItemList()
@@ -373,28 +420,66 @@ const MyCartForCustomisedQRModal = ({ cartItems, cartCount, cartTotal, fetchCart
             for (const [itemId, cartItem] of Object.entries(cartData)) {
                 if (cartItem.quantity <= 0) continue;
 
-                const itemRef = doc(db, 'users', vendorMobileNumber, 'list', itemId);
-                const itemDocSnap = await getDoc(itemRef);
+                if (cartItem.variantId && cartItem.variantId !== '') {
+                    // For variant items - get the base item first
+                    const itemRef = doc(db, 'users', vendorMobileNumber, 'list', cartItem.baseItemId);
+                    const itemDocSnap = await getDoc(itemRef);
 
-                if (!itemDocSnap.exists()) {
-                    alert(`Item "${cartItem.name}" is no longer available.`);
-                    return;
+                    if (!itemDocSnap.exists()) {
+                        alert(`Item "${cartItem.name}" is no longer available.`);
+                        return;
+                    }
+
+                    const itemData = itemDocSnap.data();
+                    const variant = itemData.variants?.find(v => v.id === cartItem.variantId);
+
+                    if (!variant) {
+                        alert(`Variant "${cartItem.name} - ${cartItem.variantName}" is no longer available.`);
+                        return;
+                    }
+
+                    if (cartItem.quantity > Number(variant.variantStock || 0)) {
+                        alert(`Not enough stock for "${cartItem.name}". Available: ${variant.variantStock}, Ordered: ${cartItem.quantity}`);
+                        return;
+                    }
+
+                    itemsToOrder.push({
+                        id: itemId,
+                        name: cartItem.name,
+                        quantity: cartItem.quantity,
+                        price: cartItem.prices,
+                        imageURL: itemData.images?.[0] || '',
+                        originalStock: itemData.stock || 0,
+                        variantId: cartItem.variantId,
+                        variantName: cartItem.variantName,
+                        baseItemId: cartItem.baseItemId,
+                        type: 'variant'
+                    });
+                } else {
+                    // For regular items
+                    const itemRef = doc(db, 'users', vendorMobileNumber, 'list', itemId);
+                    const itemDocSnap = await getDoc(itemRef);
+
+                    if (!itemDocSnap.exists()) {
+                        alert(`Item "${cartItem.name}" is no longer available.`);
+                        return;
+                    }
+
+                    const itemData = itemDocSnap.data();
+                    if (cartItem.quantity > (itemData.stock || 0)) {
+                        alert(`Not enough stock for "${cartItem.name}". Available: ${itemData.stock}, Ordered: ${cartItem.quantity}`);
+                        return;
+                    }
+
+                    itemsToOrder.push({
+                        id: itemId,
+                        name: cartItem.name,
+                        quantity: cartItem.quantity,
+                        price: cartItem.prices,
+                        imageURL: itemData.images?.[0] || '',
+                        originalStock: itemData.stock || 0,
+                    });
                 }
-
-                const itemData = itemDocSnap.data();
-                if (cartItem.quantity > (itemData.stock || 0)) {
-                    alert(`Not enough stock for "${cartItem.name}". Available: ${itemData.stock}, Ordered: ${cartItem.quantity}`);
-                    return;
-                }
-
-                itemsToOrder.push({
-                    id: itemId,
-                    name: cartItem.name,
-                    quantity: cartItem.quantity,
-                    price: cartItem.prices,
-                    imageURL: itemData.images?.[0] || '',
-                    originalStock: itemData.stock || 0,
-                });
             }
 
             if (itemsToOrder.length === 0) {
@@ -402,11 +487,25 @@ const MyCartForCustomisedQRModal = ({ cartItems, cartCount, cartTotal, fetchCart
                 return;
             }
 
+            const itemsToSendWithOrder = itemsToOrder.map(({ id, name, quantity, price, imageURL, variantId, baseItemId, variantName }) => {
+                const item = {
+                    id,
+                    name,
+                    quantity,
+                    price,
+                    imageURL
+                };
+                if (variantId && variantId !== '') {
+                    item.variantId = variantId;
+                    item.variantName = variantName;
+                    item.baseItemId = baseItemId;
+                }
+                return item;
+            });
+
             const orderDetails = {
                 businessName: vendorFullData?.businessName || '',
-                items: itemsToOrder.map(({ id, name, quantity, price, imageURL }) => ({
-                    id, name, quantity, price, imageURL
-                })),
+                items: itemsToSendWithOrder,
                 orderStatus: 'Pending',
                 orderTime: new Date(),
                 totalAmount: finalAmount || 0, // Use finalAmount instead of cartTotal
@@ -458,8 +557,32 @@ const MyCartForCustomisedQRModal = ({ cartItems, cartCount, cartTotal, fetchCart
 
             // Update stock
             for (const item of itemsToOrder) {
-                const itemRef = doc(db, 'users', vendorMobileNumber, 'list', item.id);
-                await updateDoc(itemRef, { stock: item.originalStock - item.quantity });
+                if (item.type === 'variant') {
+                    // For variants - update the specific variant stock
+                    const itemRef = doc(db, 'users', vendorMobileNumber, 'list', item.baseItemId);
+                    const itemDoc = await getDoc(itemRef);
+
+                    if (itemDoc.exists()) {
+                        const itemData = itemDoc.data();
+                        const updatedVariants = itemData.variants.map(variant => {
+                            if (variant.id === item.variantId) {
+                                return {
+                                    ...variant,
+                                    variantStock: Number(variant.variantStock) - item.quantity
+                                };
+                            }
+                            return variant;
+                        });
+
+                        await updateDoc(itemRef, {
+                            variants: updatedVariants
+                        });
+                    }
+                } else {
+                    // For regular items
+                    const itemRef = doc(db, 'users', vendorMobileNumber, 'list', item.id);
+                    await updateDoc(itemRef, { stock: item.originalStock - item.quantity });
+                }
             }
 
             let localCart = JSON.parse(localStorage.getItem('cartItems') || '{}');
@@ -605,27 +728,48 @@ const MyCartForCustomisedQRModal = ({ cartItems, cartCount, cartTotal, fetchCart
                 contentContainerStyle={{ paddingHorizontal: 5, gap: 3 }}
             >
                 <FlashList
-                    data={filteredItemsList}
-                    renderItem={({ item }) => {
-                        const cartItemIds = Object.keys(cartItems);
-                        if (!cartItemIds.includes(item.id)) return null
+                    data={Object.values(cartItems || {})} // Use cart items directly as data source
+                    renderItem={({ item: cartItem }) => {
+                        // Find the corresponding base item from vendor's inventory
+                        const baseItem = allItemsList.find(dbItem => {
+                            // For regular items
+                            if (dbItem.id === cartItem.id && (!cartItem.variantId || cartItem.variantId === '')) {
+                                return true;
+                            }
+                            // For variant items - find the base item that contains this variant
+                            if (cartItem.variantId && cartItem.variantId !== '') {
+                                if (dbItem.variants) {
+                                    return dbItem.variants.some(variant => variant.id === cartItem.variantId);
+                                }
+                            }
+                            return false;
+                        });
+
+                        if (!baseItem) {
+                            console.log('❌ No base item found for cart item:', cartItem);
+                            return null;
+                        }
+
                         return (
                             <ItemCard
-                                item={item}
-                                cartItem={cartItems[item.id] || null}
+                                key={cartItem.id}
+                                item={baseItem}
+                                cartItems={cartItems}
                                 onAddToCart={handleAddToCartWithUpdate}
                                 onIncrement={handleIncrementWithUpdate}
                                 onDecrement={handleDecrementWithUpdate}
                                 isStockVisible={false}
+                                isVariantsSelectorDisabled={true}
                                 offerBadge={selectedOffers.some(offerId => {
                                     const offer = applicableOffers.find(o => o.id === offerId);
-                                    return offer?.applicableItems?.some(appItem => appItem.id === item.id);
+                                    return offer?.applicableItems?.some(appItem => appItem.id === baseItem.id);
                                 })}
-
+                                variantId={cartItem.variantId} // Pass the variantId from cartItem
                             />
-                        )
+                        );
                     }}
-                    keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
+                    keyExtractor={(cartItem) => cartItem.id?.toString() || Math.random().toString()}
+                    estimatedItemSize={200}
                 />
 
                 {vendorOffers && vendorOffers.length !== 0 && <View className='w-full px-[10px] py-[5px] rounded-[5px] bg-primaryGreen border' >

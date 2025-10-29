@@ -150,7 +150,7 @@ const ItemCard = ({ item, cartItems, onAddToCart, onIncrement, onDecrement, isSt
               <TouchableOpacity
                 disabled={isVariantsSelectorDisabled}
                 onPress={() => setIsDropdownVisible(true)}
-                className="bg-white rounded-[5px] justify-between items-center flex-row flex-1 w-full px-[3px]"
+                className={`bg-white rounded-[5px] ${isVariantsSelectorDisabled ? 'justify-center' : 'justify-between'} items-center flex-row flex-1 w-full px-[3px]`}
               >
                 <Text className="text-[10px] text-black">
                   {selectedVariant ? selectedVariant.variantName.slice(0, 12) + (selectedVariant.variantName.length > 12 ? '...' : '') : item?.name}
