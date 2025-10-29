@@ -7,7 +7,7 @@ const MultipleItemsCard = ({ item, innerIndex, cartItems, onAddToCart, onIncreme
     const [selectedImage, setSelectedImage] = useState(item?.images?.[0] || null)
     const imageUri = item?.images && Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : null;
     const [selectedVariant, setSelectedVariant] = useState(
-        variantId ? item?.variants.filter((variant) => variant.hidden === false)?.find(variant => variant.id === variantId) || null : item?.variants?.[item?.variants?.length - 1] || null
+        // variantId ? item?.variants.filter((variant) => variant.hidden === false)?.find(variant => variant.id === variantId) || null : item?.variants?.[item?.variants?.length - 1] || null
     );
 
     const getQuantity = () => {
@@ -33,24 +33,58 @@ const MultipleItemsCard = ({ item, innerIndex, cartItems, onAddToCart, onIncreme
     };
 
     const quantity = getQuantity();
-    const mrp = selectedVariant ? selectedVariant.prices[0].variantMrp : item.prices[0].mrp || 0;
-    const sellingPrice = selectedVariant ? selectedVariant.prices[0].variantSellingPrice : item.prices[0].sellingPrice || 0;
-    const discountPercentage = mrp > 0 ? (((mrp - sellingPrice) / mrp) * 100).toFixed(0) : 0;
+    const [mrp, setMrp] = useState(item?.prices?.[0]?.mrp || 0)
+    const [sellingPrice, setSellingPrice] = useState(item?.prices?.[0]?.sellingPrice || 0)
+    const [discountPercentage, setDiscountPercentage] = useState(mrp > 0 ? (((mrp - sellingPrice) / mrp) * 100).toFixed(0) : 0)
     const [isDropdownVisible, setIsDropdownVisible] = useState(false);
 
     useEffect(() => {
-        if (item?.variants && item.variants.length > 0) {
-            const availableVariants = item.variants.filter((variant) => variant.hidden === false).filter((variant) => Number(variant?.variantStock || 0) !== 0);
-            // Prioritize variantId from props, then fall back to current variant or first available
-            const currentVariant =
-                variantId
-                    ? availableVariants.find((variant) => variant.id === variantId)
-                    : availableVariants.find((variant) => variant.id === selectedVariant?.id) || availableVariants[0] || null;
-            setSelectedVariant(currentVariant);
-        } else {
-            setSelectedVariant(null);
+        if (selectedVariant) {
+            const variantPrice = selectedVariant.prices?.[0] || {};
+            const newMrp = variantPrice.variantMrp || 0;
+            const newSellingPrice = variantPrice.variantSellingPrice || 0;
+
+            setMrp(newMrp);
+            setSellingPrice(newSellingPrice);
+            setDiscountPercentage(
+                newMrp > 0 ? (((newMrp - newSellingPrice) / newMrp) * 100).toFixed(0) : 0
+            );
         }
-    }, [item, variantId]);
+    }, [selectedVariant]);
+
+    useEffect(() => {
+        if (item?.variants && item.variants.length > 0) {
+            const availableVariants = item.variants.filter((variant) =>
+                variant.hidden === false && Number(variant.variantStock) > 0
+            );
+
+            let selectedVariantData = null;
+
+            if (availableVariants.length === 0) {
+                // No available variants, use the first variant regardless of stock
+                selectedVariantData = item.variants.find(variant => variant.hidden === false) || item.variants[0];
+            } else if (availableVariants.length === 1) {
+                selectedVariantData = availableVariants[0];
+            } else if (variantId) {
+                selectedVariantData = availableVariants.find((variant) => variant.id === variantId) || availableVariants[0];
+            } else {
+                selectedVariantData = availableVariants[0] || item.variants[0];
+            }
+
+            if (selectedVariantData) {
+                const variantPrice = selectedVariantData.prices?.[0] || {};
+                const newMrp = variantPrice.variantMrp || 0;
+                const newSellingPrice = variantPrice.variantSellingPrice || 0;
+
+                setSelectedVariant(selectedVariantData);
+                setMrp(newMrp);
+                setSellingPrice(newSellingPrice);
+                setDiscountPercentage(
+                    newMrp > 0 ? (((newMrp - newSellingPrice) / newMrp) * 100).toFixed(0) : 0
+                );
+            }
+        }
+    }, [item, variantId])
 
     const getCartItemId = () => {
         if (selectedVariant) {
@@ -134,10 +168,11 @@ const MultipleItemsCard = ({ item, innerIndex, cartItems, onAddToCart, onIncreme
                                     className="flex-1 bg-[rgba(0,0,0,0.5)] justify-center items-center"
                                     onPress={() => setIsDropdownVisible(false)}
                                 >
-                                    <View className="bg-white rounded-[5px] w-[80%] max-h-[200px] p-[10px]">
+                                    <View className="bg-white rounded-[5px] w-[90%] max-h-[90%] p-[10px]">
                                         <FlatList
                                             data={item.variants.filter((variant) => variant.hidden === false) || []}
                                             keyExtractor={(item, index) => index.toString()}
+                                            ListHeaderComponent={() => <Text className='text-center pb-[5px] border-b-[3px] border-primary rounded-[10px] font-bold text-[20px] text-primary' >{item?.name}</Text>}
                                             renderItem={({ item: variant }) => (
                                                 <TouchableOpacity
                                                     onPress={() => {
@@ -151,15 +186,15 @@ const MultipleItemsCard = ({ item, innerIndex, cartItems, onAddToCart, onIncreme
                                                         // }
                                                         setIsDropdownVisible(false);
                                                     }}
-                                                    className="py-[8px] px-[10px] border-b border-gray-200 flex-row"
+                                                    className="py-[8px] border-b border-gray-200 flex-row items-center"
                                                 >
-                                                    <Text className={`text-[12px] text-black text-center absolute left-[0px] top-[45%] ${Number(variant.variantStock) === 0 ? 'text-primaryRed line-through' : ''}`}>
+                                                    <Text className={`text-[12px] ${selectedVariant?.id === variant?.id ? 'text-primary' : 'text-black'} leading-none text-center ${Number(variant.variantStock) === 0 ? 'text-primaryRed line-through' : ''}`}>
                                                         {variant?.prices?.[0].variantSellingPrice}/{variant?.prices?.[0]?.variantMeasurement}
                                                     </Text>
-                                                    <Text className={`text-[16px] text-black text-center font-bold ${Number(variant.variantStock) === 0 ? 'text-primaryRed line-through' : ''} flex-1`}>
+                                                    <Text className={`text-[16px] ${selectedVariant?.id === variant?.id ? 'text-primary' : 'text-black'} text-center font-bold ${Number(variant.variantStock) === 0 ? 'text-primaryRed line-through' : ''} flex-1`}>
                                                         {variant.variantName}
                                                     </Text>
-                                                    <Text className={`text-[12px] text-black text-center absolute right-[0px] top-[45%] ${Number(variant.variantStock) === 0 ? 'text-primaryRed line-through' : ''}`}>
+                                                    <Text className={`text-[12px] ${selectedVariant?.id === variant?.id ? 'text-primary' : 'text-black'} leading-none text-center ${Number(variant.variantStock) === 0 ? 'text-primaryRed line-through' : ''}`}>
                                                         {variant.variantStock} (Stk)
                                                     </Text>
                                                 </TouchableOpacity>
