@@ -36,7 +36,7 @@ const ForgotPassword = () => {
     setIsCommonLoaderVisible(true)
     try {
       if (customerMobileNumber.length !== 10) {
-        errorMessage('Please enter a valid 10 digit mobile number.')
+        setErrorMessage('Please enter a valid 10 digit mobile number.')
         return;
       }
 
@@ -44,7 +44,7 @@ const ForgotPassword = () => {
       const customerDoc = await getDoc(customerRef);
 
       if (!customerDoc.exists()) {
-        errorMessage(`'${customerMobileNumber}' is not registered.`)
+        setErrorMessage(`'${customerMobileNumber}' is not registered.`)
         return;
       }
 
