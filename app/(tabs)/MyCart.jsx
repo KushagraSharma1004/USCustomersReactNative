@@ -977,14 +977,14 @@ const MyCart = () => {
                       {item.applicableOn === 'All Items' && <Text className='font-bold text-center' >on</Text>}
                       {item.applicableOn === 'All Items' && <Text className='font-bold text-center' >All Items</Text>}
                       {item.applicableOn !== 'All Items' && <Text className='font-bold' >Applicable on</Text>}
-                      {item.applicableOn !== 'All Items' &&
+                      {item.applicableOn !== 'All Items' && (
                         <FlatList
                           data={item.applicableItems}
                           keyExtractor={(appItem, index) => appItem.id || index.toString()}
                           nestedScrollEnabled={true}
-                          className='gap-[3px]'
+                          className='gap-[3px] max-w-[100px]'
                           renderItem={({ item: appItem }) => (
-                            <View className="flex-row items-center border border-[#ccc] p-[5px] rounded-[5px]">
+                            <View className="items-center border border-[#ccc] p-[5px] rounded-[5px]">
                               {appItem.image && (
                                 <Image
                                   source={{ uri: appItem.image }}
@@ -999,7 +999,7 @@ const MyCart = () => {
                             </View>
                           )}
                         />
-                      }
+                      )}
                     </View>
 
                     <View className='h-full border-l border-[#ccc] pr-[5px]' />

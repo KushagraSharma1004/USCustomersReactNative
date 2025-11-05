@@ -160,7 +160,7 @@ const ItemCard = ({ item, cartItems, onAddToCart, onIncrement, onDecrement, isSt
 
         {/* Name + Variant */}
         <View className="flex-row justify-between items-center w-full px-[7px]">
-          <Text className="text-[16px] max-w-[75%]">{item.name}</Text>
+          <Text className="text-[16px] max-w-[65%]">{item.name}</Text>
           {item?.variants?.length > 0 && (
             <View className="rounded-[5px] border border-primary items-center justify-center min-w-[70px] max-w-[70px] py-[5px]">
               <TouchableOpacity
@@ -169,7 +169,7 @@ const ItemCard = ({ item, cartItems, onAddToCart, onIncrement, onDecrement, isSt
                 className={`bg-white rounded-[5px] ${isVariantsSelectorDisabled ? 'justify-center' : 'justify-between'} items-center flex-row flex-1 w-full px-[3px]`}
               >
                 <Text className="text-[10px] text-black">
-                  {selectedVariant ? selectedVariant.variantName.slice(0, 12) + (selectedVariant.variantName.length > 12 ? '...' : '') : item?.name}
+                  {selectedVariant ? selectedVariant.variantName.slice(0, 8) + (selectedVariant.variantName.length > 8 ? '...' : '') : item?.name}
                 </Text>
                 {!isVariantsSelectorDisabled && <Text className='text-[14px]' >{'>'}</Text>}
               </TouchableOpacity>
@@ -353,7 +353,7 @@ const ItemCard = ({ item, cartItems, onAddToCart, onIncrement, onDecrement, isSt
               {Array.from({ length: item?.images ? item?.images?.length : 0 }).map((_, idx) => (
                 <TouchableOpacity
                   key={idx}
-                  className="w-[22.5%] "
+                  className="w-[22.5%]"
                   onPress={() => setSelectedImage(item?.images?.[idx])}
                 >
                   {item?.images?.[idx] ? (

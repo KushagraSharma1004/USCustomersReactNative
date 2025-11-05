@@ -169,7 +169,7 @@ const MultipleItemsCard = ({ item, innerIndex, cartItems, onAddToCart, onIncreme
                             >
                                 <Text className="text-[10px] text-black">
                                     {selectedVariant
-                                        ? selectedVariant.variantName.slice(0, 10) + (selectedVariant.variantName.length > 10 ? '...' : '')
+                                        ? selectedVariant.variantName.slice(0, 8) + (selectedVariant.variantName.length > 8 ? '...' : '')
                                         : item?.name}
                                 </Text>
                                 {!isVariantsSelectorDisabled && <Text className='text-[14px] text-primary'>{'>'}</Text>}
