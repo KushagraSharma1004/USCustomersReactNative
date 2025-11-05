@@ -772,7 +772,7 @@ const Vendors = () => {
 
   return (
     <View className='flex-1 gap-[1px]'>
-      {isOrderCommentModalVisible &&
+      {isOrderCommentModalVisible && (
         <Modal animationType='slide' >
           <View className='flex-1 bg-[#00000080] items-center justify-center' >
             <View className='p-[20px] w-[96%] bg-white rounded-[10px] gap-[15px] items-center justify-center' >
@@ -794,10 +794,10 @@ const Vendors = () => {
             </View>
           </View>
         </Modal>
-      }
+      )}
 
       {isCommonLoaderVisible && <Loader />}
-      {isRemoveVendorFromMyVendorsListConfirmationModalVisible &&
+      {isRemoveVendorFromMyVendorsListConfirmationModalVisible && (
         <ConfirmationModal
           setIsConfirmModalVisible={setIsRemoveVendorFromMyVendorsListConfirmationModalVisible}
           confirmationMessage={'Are you sure you want to remove this vendor from ⁠❤️ Vendors list?'}
@@ -808,7 +808,7 @@ const Vendors = () => {
           confirmText='Delete'
           cancelText='Cancel'
         />
-      }
+      )}
 
       <Modal animationType='slide' transparent={true} visible={isVendorTermsAndConditionsModalVisible}>
         <View className='flex-1 bg-[#00000060] items-center justify-center' >

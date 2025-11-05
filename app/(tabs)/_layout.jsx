@@ -157,6 +157,7 @@ const TabsLayout = () => {
                     <Tabs
                         initialRouteName="Home"
                         screenOptions={{
+                            animation: 'shift',
                             headerShown: false,
                             tabBarActiveBackgroundColor: '#2874F0',
                             tabBarActiveTintColor: 'white',

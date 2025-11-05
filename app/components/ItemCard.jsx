@@ -326,7 +326,6 @@ const ItemCard = ({ item, cartItems, onAddToCart, onIncrement, onDecrement, isSt
 
           <ScrollView
             stickyHeaderIndices={[0]}
-            // StickyHeaderComponent={() => <Text className="text-center text-lg font-semibold text-black mb-2 ">{item?.name}</Text>}
             className={`bg-white w-[95%] rounded-xl border-y-4 border-primary ${(selectedVariant ? selectedVariant?.variantDescription : item?.description) && (selectedVariant ? selectedVariant?.variantDescription : item?.description) !== "" ? 'max-h-[95%]' : 'max-h-[70%]'}`}
             contentContainerStyle={{
               alignItems: "center",
@@ -335,7 +334,12 @@ const ItemCard = ({ item, cartItems, onAddToCart, onIncrement, onDecrement, isSt
               gap: 5,
             }}
           >
-            <Text className="text-center text-lg font-semibold text-black bg-white p-[5px] w-screen">{item?.name}</Text>
+            
+            <View className='w-full' >
+              <Text className="text-center text-lg font-semibold text-black bg-white p-[5px] w-screen">{item?.name}</Text>
+              <Image style={{ height: 30, width: 30 }} className="w-[20px] h-[20px] absolute top-[0px] right-[20px] bg-white rounded-full" source={require("../../assets/images/crossImage.png")} ></Image>
+            </View>
+
             {/* Main Image */}
             <Image
               style={{ height: 300, width: 300 }}
@@ -359,9 +363,6 @@ const ItemCard = ({ item, cartItems, onAddToCart, onIncrement, onDecrement, isSt
                       resizeMode="cover"
                     />
                   ) : (
-                    // <View className="h-20 w-full rounded-md bg-primaryLight items-center justify-center">
-                    //   <Text className="text-xl text-white font-bold">+</Text>
-                    // </View>
                     <></>
                   )}
                 </TouchableOpacity>

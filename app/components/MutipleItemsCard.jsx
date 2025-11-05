@@ -297,7 +297,11 @@ const MultipleItemsCard = ({ item, innerIndex, cartItems, onAddToCart, onIncreme
                             gap: 5,
                         }}
                     >
-                        <Text className="text-center text-lg font-semibold text-black bg-white p-[5px] w-screen">{item?.name}</Text>
+                        <View className='w-full' >
+                            <Text className="text-center text-lg font-semibold text-black bg-white p-[5px] w-screen">{item?.name}</Text>
+                            <Image style={{ height: 30, width: 30 }} className="w-[20px] h-[20px] absolute top-[0px] right-[20px] bg-white rounded-full" source={require("../../assets/images/crossImage.png")} ></Image>
+                        </View>
+
                         {/* Main Image */}
                         <Shadow distance={5} startColor={'rgba(0,0,0,0.1)'} offset={[0, 3]} style={{ borderRadius: 7 }}>
                             <Image
