@@ -81,10 +81,8 @@ const ItemCard = ({ item, cartItems, onAddToCart, onIncrement, onDecrement, isSt
         selectedVariantData = item.variants.find(variant => variant.hidden === false) || item.variants[0];
       } else if (availableVariants.length === 1) {
         selectedVariantData = availableVariants[0];
-        console.log('yes!!')
       } else if (variantId) {
         selectedVariantData = availableVariants.find((variant) => variant.id === variantId) || availableVariants[0];
-        console.log('yes2!!')
       } else {
         selectedVariantData = availableVariants[0] || item.variants[0];
       }
