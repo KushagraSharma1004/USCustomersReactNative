@@ -20,7 +20,7 @@ const MyCart = () => {
   const { cartItems, fetchCartItems, cartCount, cartTotal } = useCart()
   const { openAddressSheet } = useAddressSheet()
   const vendorMobileNumber = decryptData(localStorage.getItem('vendor'))
-  const { isInServiceArea, isCheckingServiceArea, serviceAreaError, customerLocation, checkServiceArea, refreshLocation, hasServiceArea } = useServiceAreaCheck(decryptData(localStorage.getItem('vendor')));
+  const { isInServiceArea, checkServiceArea, hasServiceArea } = useServiceAreaCheck(decryptData(localStorage.getItem('vendor')));
   const [filteredItemsList, setFilteredItemsList] = useState([]);
   const [allItemsList, setAllItemsList] = useState([]);
   const [searchQuery, setSearchQuery] = useState('')
@@ -943,9 +943,23 @@ const MyCart = () => {
                 isVariantsSelectorDisabled={true}
                 offerBadge={selectedOffers.some(offerId => {
                   const offer = applicableOffers.find(o => o.id === offerId);
-                  return offer?.applicableItems?.some(appItem => appItem.id === baseItem.id);
+                  if (!offer?.applicableItems) return false;
+
+                  // Check if offer applies to base item
+                  const appliesToBaseItem = offer.applicableItems.some(appItem =>
+                    appItem.id === baseItem.id
+                  );
+
+                  // Check if offer applies to specific variant (if this is a variant item)
+                  const appliesToVariant = cartItem.variantId &&
+                    offer.applicableItems.some(appItem =>
+                      appItem.id === cartItem.variantId ||
+                      appItem.id === `${baseItem.id}_${cartItem.variantId}`
+                    );
+
+                  return appliesToBaseItem || appliesToVariant;
                 })}
-                variantId={cartItem.variantId} // Pass the variantId from cartItem
+                variantId={cartItem.variantId}
               />
             );
           }}
