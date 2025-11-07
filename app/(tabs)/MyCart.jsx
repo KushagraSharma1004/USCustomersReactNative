@@ -51,10 +51,25 @@ const MyCart = () => {
 
     // Find all applicable offers (respecting minimum order amount)
     const allApplicableOffers = vendorOffers.filter(offer => {
+      // 1. Check minimum order amount
       if (offer.minimumOrderAmount && cartTotal < offer.minimumOrderAmount) {
         return false;
       }
-      return true;
+
+      // 2. If offer applies to ALL items → always applicable (if min amount met)
+      if (offer.applicableOn === 'All Items') {
+        return true;
+      }
+
+      // 3. Otherwise: check if ANY cart item matches ANY applicable item
+      const cartItemValues = Object.values(cartItems);
+
+      return cartItemValues.some(cartItem => {
+        return offer.applicableItems.some(appItem => {
+          // Match by baseItemId (for variants) or direct id
+          return appItem.id === cartItem.baseItemId || appItem.id === cartItem.id;
+        });
+      });
     });
 
     setApplicableOffers(allApplicableOffers);
@@ -975,6 +990,7 @@ const MyCart = () => {
           {isOffersSectionOpen && (
             <FlatList
               data={vendorOffers.filter((offer) => offer.active)}
+              // extraData={applicableOffers}
               horizontal
               className='mt-[5px]'
               renderItem={({ item }) => {
