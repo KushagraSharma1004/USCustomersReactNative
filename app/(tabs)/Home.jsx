@@ -129,6 +129,19 @@ const Home = () => {
   const [maxRounds, setMaxRounds] = useState(0);
   const snapshotVendors = useRef([]);
 
+  const categoriesWithProducts = useMemo(() => {
+    const set = new Set();
+
+    Object.values(allProductsByVendor).forEach(vendorProds => {
+      vendorProds.forEach(p => {
+        const catId = p.category || p.categoryId; // prefer product.category if exists
+        if (catId) set.add(catId);
+      });
+    });
+
+    return set;
+  }, [allProductsByVendor]);
+
   const handleRemoveVendorFromMyVendorsList = async () => {
     try {
       const vendorInCustomerRef = doc(db, 'customers', customerMobileNumber, 'vendors', vendorMobileNumberToRemoveFromMyVendorsList)
@@ -172,7 +185,7 @@ const Home = () => {
 
   const sortedProducts = useMemo(() => {
     let products = [];
-  
+
     if (selectedCategoryId && selectedCategoryId !== '') {
       // ✅ STEP 1: Get ALL category products by vendor
       const categoryProductsByVendor = {};
@@ -182,7 +195,7 @@ const Home = () => {
           categoryProductsByVendor[vendorId] = categoryProducts;
         }
       });
-  
+
       // ✅ STEP 2: Sort vendors by distance/rating (same as meshing order)
       const vendorOrder = snapshotVendors.current
         .filter(v => categoryProductsByVendor[v.vendorMobileNumber])
@@ -192,7 +205,7 @@ const Home = () => {
           if (b.distance !== null) return 1;
           return (b.ratingCount || 0) - (a.ratingCount || 0);
         });
-  
+
       // ✅ STEP 3: MESH like original - 1 from each vendor, rotate
       const maxRounds = Math.max(...Object.values(categoryProductsByVendor).map(arr => arr.length));
       for (let round = 0; round < maxRounds; round++) {
@@ -216,9 +229,9 @@ const Home = () => {
       // No category → use normal meshed products
       products = allProducts;
     }
-  
+
     const lowercasedQuery = searchQuery.toLowerCase();
-  
+
     // 1. Search Filter
     if (searchQuery) {
       products = products.filter(product =>
@@ -226,7 +239,7 @@ const Home = () => {
         product.businessName?.toLowerCase().includes(lowercasedQuery)
       );
     }
-  
+
     return products;
   }, [allProducts, searchQuery, allProductsByVendor, selectedCategoryId, snapshotVendors]);
 
@@ -328,7 +341,7 @@ const Home = () => {
       // Tertiary sort: Rating count descending
       return (b.ratingCount || 0) - (a.ratingCount || 0)
     });
-  }, [vendorsWithDistanceAndAvailability, searchQuery, selectedCategoryId, 
+  }, [vendorsWithDistanceAndAvailability, searchQuery, selectedCategoryId,
     // distanceFilter
   ]);
 
@@ -342,7 +355,7 @@ const Home = () => {
         return snapshot.docs.map(doc => ({
           ...doc.data(),
           id: doc.id,
-          categoryId: vendor.category,
+          categoryId: doc.data().category || vendor.category,
           vendorMobileNumber: vendor.vendorMobileNumber,
           businessName: vendor.businessName,
           businessImageURL: vendor.businessImageURL,
@@ -351,17 +364,17 @@ const Home = () => {
           isVendorActive: vendor.isVendorActive
         })).filter(p => !p.hidden);
       });
-  
+
       const results = await Promise.all(promises);
       const byVendor = {};
       vendors.forEach((v, i) => {
         byVendor[v.vendorMobileNumber] = results[i];
       });
       setAllProductsByVendor(byVendor);
-  
+
       const mr = Math.max(...results.map(r => r.length), 0);
       setMaxRounds(mr);
-  
+
       // Load the first round immediately if there are products
       if (mr > 0) {
         setAllProducts([]); // Reset products
@@ -412,9 +425,9 @@ const Home = () => {
       .filter(v => v.isVendorActive && !v.disabled);
 
     // Apply category filter
-    if (selectedCategoryId) {
-      candidateVendors = candidateVendors.filter(v => v.category === selectedCategoryId);
-    }
+    // if (selectedCategoryId) {
+    //   candidateVendors = candidateVendors.filter(v => v.category === selectedCategoryId);
+    // }
 
     // Sort active vendors for consistent product meshing
     return candidateVendors
@@ -439,7 +452,7 @@ const Home = () => {
       setCurrentRound(0);
       setAllProducts([]);
       setHasMoreProducts(false);
-  
+
       snapshotVendors.current = activeVendorsForProducts;
       fetchProductsForVendors(activeVendorsForProducts);
     } else {
@@ -498,7 +511,19 @@ const Home = () => {
       <View className="bg-white w-[98%] self-center justify-between rounded-[5px] flex-row">
         <FlatList
           horizontal
-          data={categoriesThoseHaveVendor}
+          // data={selectedMode === 'Products'
+          //   ? categoriesThoseHaveVendor.filter(category => {
+          //     // Check if this category has any products in the current view
+          //     const hasProducts = sortedProducts.filter(product => product.isVendorActive && product.images?.[0] && product.categoryId === category.id).length > 0;
+          //     return hasProducts;
+          //   })
+          //   : categoriesThoseHaveVendor
+          // }
+          data={
+            selectedMode === 'Products'
+              ? categoriesThoseHaveVendor.filter(cat => categoriesWithProducts.has(cat.id))
+              : categoriesThoseHaveVendor
+          }
           keyExtractor={(item) => item.id}
           showsHorizontalScrollIndicator={false}
           renderItem={({ item }) => {
