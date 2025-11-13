@@ -250,7 +250,14 @@ const ItemCard = ({ item, cartItems, onAddToCart, onIncrement, onDecrement, isSt
 
         {/* Name + Variant */}
         <View className="flex-row justify-between items-center w-full px-[7px]">
-          <Text className="text-[16px] max-w-[65%]">{item.name}</Text>
+          {/* <View className='flex-row gap-[2px]' > */}
+          <TouchableOpacity onPress={handleShare} className='max-w-[65%]'>
+            <Text className="text-[16px] items-center">
+              {item.name}
+              <Image source={require('../../assets/images/shareImage.png')} style={{ width: 15, height: 15 }} className="w-[20px] h-[20px] ml-[5px]" />
+            </Text>
+          </TouchableOpacity>
+          {/* </View> */}
           {item?.variants?.length > 0 && (
             <View className="rounded-[5px] border border-primary items-center justify-center min-w-[70px] max-w-[70px] py-[5px]">
               <TouchableOpacity
@@ -351,7 +358,6 @@ const ItemCard = ({ item, cartItems, onAddToCart, onIncrement, onDecrement, isSt
         {/* Stock */}
         {item?.variants?.length > 0 && (
           <View className="flex-row justify-between items-center w-full px-[7px]">
-            <TouchableOpacity onPress={handleShare} ><Image source={require('../../assets/images/shareImage.png')} style={{ width: 20, height: 20 }} className="w-[20px] h-[20px]" /></TouchableOpacity>
             {isStockVisible && <Text className="text-[12px] text-[#8B8000]">Stk: {selectedVariant ? selectedVariant.variantStock : item.stock}</Text>}
           </View>
         )}
@@ -417,7 +423,7 @@ const ItemCard = ({ item, cartItems, onAddToCart, onIncrement, onDecrement, isSt
         <View
           // onPress={handleCloseItemDetailsModal}
           className="flex-1 bg-[#00000060] items-center justify-center"
-          // activeOpacity={1}
+        // activeOpacity={1}
         >
           <ScrollView
             stickyHeaderIndices={[0]}
@@ -430,20 +436,20 @@ const ItemCard = ({ item, cartItems, onAddToCart, onIncrement, onDecrement, isSt
             }}
           >
             {/* Header */}
-            <View className='w-full flex-row items-center justify-between bg-white rounded-b-[5px]'>
+            <View className='w-full flex-row items-center justify-between bg-white rounded-b-[5px] min-w-[100%]'>
               <Text className="text-center text-lg font-semibold text-black p-[5px] flex-1">
                 {item?.name}
               </Text>
-            </View>
               <TouchableOpacity
                 onPress={handleCloseItemDetailsModal}
-                className="absolute top-[5px] right-[5px] bg-white rounded-full p-[3px]"
+                className="bg-white rounded-full p-[3px] z-50"
               >
                 <Image
                   source={require("../../assets/images/crossImage.png")}
                   style={{ height: 25, width: 25 }}
                 />
               </TouchableOpacity>
+            </View>
 
             {/* Main Image */}
             <Image
@@ -487,77 +493,74 @@ const ItemCard = ({ item, cartItems, onAddToCart, onIncrement, onDecrement, isSt
                       return (
                         <View
                           key={variant.id}
-                          className={`flex-row justify-between items-center p-[5px] mb-[3px] rounded-lg border-2 ${isSelected ? 'border-primary bg-blue-50' : 'border-gray-200 bg-white'
-                            } ${isOutOfStock ? 'opacity-60' : ''}`}
+                          className={`p-[5px] mb-[3px] rounded-lg gap-[2px] border-2 ${isSelected ? 'border-primary bg-blue-50' : 'border-gray-200'} ${isOutOfStock ? 'border-primaryRed bg-[#ccc]' : ''}`}
                         >
-                          {/* Variant Info */}
-                          <View className="flex-1">
-                            <Text className={`text-base font-bold ${isSelected ? 'text-primary' : 'text-black'} ${isOutOfStock ? 'line-through' : ''}`}>
-                              {variant.variantName}
+                          {isOutOfStock && <Text className='text-[24px] absolute self-center text-white font-bold top-[30%]' >Out Of Stock</Text>}
+                          <Text className={`text-[16px] font-bold ${isSelected ? 'text-primary' : 'text-black'} ${isOutOfStock ? 'line-through' : ''} w-full text-center`}>
+                            {variant.variantName}
+                          </Text>
+
+                          <View className="flex-row justify-between items-center w-full">
+                            <Text className="text-[12px] line-through text-primaryRed">
+                              MRP: ₹{variant.prices[0].variantMrp}
                             </Text>
-                            {/* <View className="flex-row items-center gap-3"> */}
-                              <Text className="text-lg font-bold text-primary">
-                                ₹{variant.prices[0].variantSellingPrice}
-                                <Text className="text-sm">/{variant.prices[0].variantMeasurement}</Text>
-                              </Text>
-                              {variant.prices[0].variantMrp > variant.prices[0].variantSellingPrice && (
-                                <Text className="text-sm line-through text-gray-500">
-                                  MRP: ₹{variant.prices[0].variantMrp}
-                                </Text>
-                              )}
-                              <Text className={`text-xs ${isOutOfStock ? 'text-red-500' : 'text-green-600'}`}>
-                                Stock: {variant.variantStock}
-                              </Text>
-                            {/* </View> */}
+                            <Text className={`text-[12px] ${isOutOfStock ? 'text-red-500' : 'text-[#8B8000]'}`}>
+                              Stock: {variant.variantStock}
+                            </Text>
                           </View>
 
-                          {/* Selection and Cart Controls */}
-                          <View className="flex-row items-center gap-2">
-                            {/* Selection Radio Button */}
-                            <TouchableOpacity
-                              disabled={isOutOfStock}
-                              onPress={() => {
-                                if (!isOutOfStock) {
-                                  setSelectedVariant(variant);
-                                }
-                              }}
-                              className={`w-6 h-6 rounded-full border-2 ${isSelected ? 'bg-primary border-primary' : 'border-gray-400'
-                                } ${isOutOfStock ? 'border-gray-300' : ''}`}
-                            >
-                              {isSelected && (
-                                <View className="w-3 h-3 bg-white rounded-full m-auto" />
-                              )}
-                            </TouchableOpacity>
+                          <View className="flex-row justify-between items-center w-full">
+                            <Text className="text-[16px] font-bold text-primary">
+                              ₹{variant.prices[0].variantSellingPrice}
+                              <Text className="text-[12px]">/{variant.prices[0].variantMeasurement}</Text>
+                            </Text>
+                            <View className="flex-row items-center gap-2">
+                              {/* Selection Radio Button */}
+                              <TouchableOpacity
+                                disabled={isOutOfStock}
+                                onPress={() => {
+                                  if (!isOutOfStock) {
+                                    setSelectedVariant(variant);
+                                  }
+                                }}
+                                className={`w-6 h-6 rounded-full border-2 ${isSelected ? 'bg-primary border-primary' : 'border-gray-400'
+                                  } ${isOutOfStock ? 'border-gray-300' : ''}`}
+                              >
+                                {isSelected && (
+                                  <View className="w-3 h-3 bg-white rounded-full m-auto" />
+                                )}
+                              </TouchableOpacity>
 
-                            {/* Cart Controls */}
-                            {!isOutOfStock && (
-                              variantQuantity === 0 ? (
-                                <TouchableOpacity
-                                  onPress={() => onAddToCart(item, variant)}
-                                  className="bg-primary rounded-[5px] p-[5px] min-w-[80px]"
-                                >
-                                  <Text className="text-white text-sm font-bold text-center">Add +</Text>
-                                </TouchableOpacity>
-                              ) : (
-                                <View className="flex-row items-center bg-primary rounded-[5px] justify-center gap-[15px] px-[8px]">
+                              {/* Cart Controls */}
+                              {!isOutOfStock && (
+                                variantQuantity === 0 ? (
                                   <TouchableOpacity
-                                    onPress={() => onDecrement(variant.id, variantQuantity)}
-                                    className=""
+                                    onPress={() => onAddToCart(item, variant)}
+                                    className="bg-primary rounded-[5px] p-[5px] min-w-[80px]"
                                   >
-                                    <Text className="text-white text-lg">–</Text>
+                                    <Text className="text-white text-sm font-bold text-center">Add +</Text>
                                   </TouchableOpacity>
-                                  <Text className="text-white text-sm font-bold ">
-                                    {variantQuantity}
-                                  </Text>
-                                  <TouchableOpacity
-                                    onPress={() => onIncrement(variant.id)}
-                                    className=""
-                                  >
-                                    <Text className="text-white text-lg">+</Text>
-                                  </TouchableOpacity>
-                                </View>
-                              )
-                            )}
+                                ) : (
+                                  <View className="flex-row items-center bg-primary rounded-[5px] justify-center gap-[15px] px-[8px]">
+                                    <TouchableOpacity
+                                      onPress={() => onDecrement(variant.id, variantQuantity)}
+                                      className=""
+                                    >
+                                      <Text className="text-white text-lg">–</Text>
+                                    </TouchableOpacity>
+                                    <Text className="text-white text-sm font-bold ">
+                                      {variantQuantity}
+                                    </Text>
+                                    <TouchableOpacity
+                                      onPress={() => onIncrement(variant.id)}
+                                      className=""
+                                    >
+                                      <Text className="text-white text-lg">+</Text>
+                                    </TouchableOpacity>
+                                  </View>
+                                )
+                              )}
+                            </View>
                           </View>
                         </View>
                       );
@@ -657,9 +660,9 @@ const ItemCard = ({ item, cartItems, onAddToCart, onIncrement, onDecrement, isSt
               )}
           </ScrollView>
         </View>
-      </Modal>
+      </Modal >
 
-    </View>
+    </View >
   );
 };
 

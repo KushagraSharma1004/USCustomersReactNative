@@ -499,6 +499,11 @@ const MyCart = () => {
           }
           if (cartItem.quantity > Number(variant.variantStock || 0)) {
             alert(`Not enough stock for "${cartItem.name}".`);
+            const cartItemRef = doc(db, 'customers', customerMobileNumber, 'cart', vendorMobileNumber, 'items', cartItem.id);
+            const itemSnap = await getDoc(cartItemRef);
+            if (itemSnap.exists()) {
+              await deleteDoc(cartItemRef)
+            }
             return;
           }
           itemsToOrder.push({
