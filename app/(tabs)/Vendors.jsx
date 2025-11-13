@@ -999,9 +999,9 @@ const Vendors = () => {
                       if (isItemsMultiple && section.items[firstIndexOfGroup].id === item.id) {
                         return (
                           <View key={item.id} className={`bg-[white] gap-[3px] ${section.categoryName !== 'Uncategorized' ? 'bg-[#00000020] border-l-[10px] border-wheat' : 'rounded-b-[10px]'}`}>
-                            <Text className="text-base font-bold text-white text-center bg-primary rounded-[10px] p-[7px] mx-[5px]">
+                            {/* <Text className="text-base font-bold text-white text-center bg-primary rounded-[10px] p-[7px] mx-[5px]">
                               {item.name}
-                            </Text>
+                            </Text> */}
 
                             <FlatList
                               data={sortedNameGroup}
@@ -1014,6 +1014,8 @@ const Vendors = () => {
                                 return (
                                   <View className="mr-[5px]">
                                     <MultipleItemsCard
+                                      itemIdForItemDetailModal={itemIdForItemDetailModal}
+                                      setItemIdForItemDetailModal={setItemIdForItemDetailModal}
                                       item={groupedItem}
                                       innerIndex={sortedNameGroup.length - groupedItemIndex}
                                       cartItems={cartSource}

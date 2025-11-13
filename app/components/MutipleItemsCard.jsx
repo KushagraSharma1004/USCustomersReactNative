@@ -1,15 +1,14 @@
 import { View, Text, Image, TouchableOpacity, ScrollView, Modal, FlatList } from 'react-native'
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Shadow } from 'react-native-shadow-2';
+import { encryptData } from '../context/hashing';
 
-const MultipleItemsCard = ({ item, innerIndex, cartItems, onAddToCart, onIncrement, onDecrement, isVariantsSelectorDisabled = false, variantId }) => {
-    const [isItemImageModalVisible, setIsItemImageModalVisible] = useState(false)
+const MultipleItemsCard = ({ item, innerIndex, cartItems, onAddToCart, onIncrement, onDecrement, isVariantsSelectorDisabled = false, variantId, itemIdForItemDetailModal = null, setItemIdForItemDetailModal }) => {
+    // const [isItemImageModalVisible, setIsItemImageModalVisible] = useState(false)
+    const [isItemDetailsModalVisible, setIsItemDetailsModalVisible] = useState(false)
     const [selectedImage, setSelectedImage] = useState(item?.images?.[0] || null)
     const imageUri = item?.images && Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : null;
-    const [selectedVariant, setSelectedVariant] = useState(
-        // variantId ? item?.variants.filter((variant) => variant.hidden === false)?.find(variant => variant.id === variantId) || null : item?.variants?.[item?.variants?.length - 1] || null
-    );
-
+    const [selectedVariant, setSelectedVariant] = useState();
     const getQuantity = () => {
         if (!cartItems || Object.keys(cartItems).length === 0) {
             return 0;
@@ -31,7 +30,6 @@ const MultipleItemsCard = ({ item, innerIndex, cartItems, onAddToCart, onIncreme
             return regularCartItem?.quantity || 0;
         }
     };
-
     const getQuantityForParticularItem = (itemId) => {
         if (!cartItems || Object.keys(cartItems).length === 0) {
             return 0;
@@ -47,7 +45,6 @@ const MultipleItemsCard = ({ item, innerIndex, cartItems, onAddToCart, onIncreme
             return variantCartItem?.quantity || 0;
         }
     };
-
     const quantity = getQuantity();
     const [mrp, setMrp] = useState(item?.prices?.[0]?.mrp || 0)
     const [sellingPrice, setSellingPrice] = useState(item?.prices?.[0]?.sellingPrice || 0)
@@ -102,6 +99,43 @@ const MultipleItemsCard = ({ item, innerIndex, cartItems, onAddToCart, onIncreme
         }
     }, [item, variantId])
 
+    useEffect(() => {
+        if (!itemIdForItemDetailModal) return;
+
+        // Check if this item matches the itemIdForItemDetailModal
+        const shouldOpenModal =
+            // Case 1: This is a regular item and ID matches
+            item.id === itemIdForItemDetailModal ||
+            // Case 2: This item has variants and one of them matches
+            (item?.variants?.some(variant => variant.id === itemIdForItemDetailModal));
+
+        if (shouldOpenModal) {
+            // If it's a variant, set the selected variant
+            if (item?.variants?.length > 0) {
+                const targetVariant = item.variants.find(variant => variant.id === itemIdForItemDetailModal);
+                if (targetVariant) {
+                    setSelectedVariant(targetVariant);
+                }
+            }
+            setIsItemDetailsModalVisible(true);
+
+            // Reset the parent state after opening modal
+            if (setItemIdForItemDetailModal) {
+                setTimeout(() => setItemIdForItemDetailModal(null), 100);
+            }
+        }
+    }, [itemIdForItemDetailModal, item]);
+
+    const handleCloseItemDetailsModal = () => {
+        setIsItemDetailsModalVisible(false);
+        setSelectedImage(item?.images?.[0] || null);
+
+        // Also reset the parent state
+        if (setItemIdForItemDetailModal) {
+            setItemIdForItemDetailModal(null);
+        }
+    };
+
     const getCartItemId = () => {
         if (selectedVariant) {
             return selectedVariant.id;
@@ -110,8 +144,64 @@ const MultipleItemsCard = ({ item, innerIndex, cartItems, onAddToCart, onIncreme
         }
     };
 
+    const handleShare = async () => {
+        try {
+            const currentUrl = new URL(window.location.href);
+            const vendorParam = currentUrl.searchParams.get('vendor');
+            const vendorLink = `${window.location.origin}${window.location.pathname}?vendor=${vendorParam}&itemCard=${encryptData(item?.variants?.length > 0 ? selectedVariant?.id : item.id)}`;
+
+            const imageUrl = item?.images?.[0];
+
+            if (!imageUrl) {
+                throw new Error("No image available to share");
+            }
+
+            // Fetch image and convert to Blob
+            const response = await fetch(imageUrl);
+            if (!response.ok) throw new Error("Failed to fetch image");
+            const blob = await response.blob();
+
+            // Create File with proper name and type
+            const file = new File([blob], `${item.name.replace(/\s+/g, '_')}.jpg`, {
+                type: blob.type || 'image/jpeg',
+            });
+
+            // NOW check if sharing files is supported
+            const shareData = {
+                title: item.name,
+                text: `Check out this product: ${item.name} on UnoShops.`,
+                url: vendorLink,
+                files: [file],
+            };
+
+            const canShareFiles = navigator.share && navigator.canShare && navigator.canShare(shareData);
+
+            if (canShareFiles) {
+                await navigator.share(shareData);
+            } else {
+                // Fallback: Share without file
+                await navigator.share({
+                    title: item.name,
+                    text: `Check out this product: ${item.name} on UnoShops.`,
+                    url: vendorLink,
+                });
+            }
+        } catch (error) {
+            console.error('Sharing failed:', error);
+
+            // Final fallback: Copy link
+            const vendorLink = `${window.location.origin}${window.location.pathname}?itemCard=${encryptData(item.id)}`;
+            if (navigator.clipboard) {
+                await navigator.clipboard.writeText(vendorLink);
+                alert("Link copied to clipboard!");
+            } else {
+                alert("Sharing not supported. Link: " + vendorLink);
+            }
+        }
+    };
+
     return (
-        <View className="flex-col justify-between items-center border-b-[1px] border-r-[1px] rounded-[7px] p-[10px] mb-[3px] bg-[#ffffffd9] relative max-w-[170px] gap-[5px]">
+        <View className="flex-col justify-between items-center border-[1px] rounded-[7px] p-[10px] mb-[3px] bg-[#ffffffd9] relative max-w-[170px] gap-[5px]">
             {
                 (selectedVariant ? selectedVariant.variantStock : item.stock) === 0 &&
                 <View style={{ width: '100%', height: '100%' }} className={`bg-[rgba(0,0,0,0.5)] absolute z-20 justify-center items-center top-0 left-0 bottom-0 rounded-[7px]`}>
@@ -131,7 +221,7 @@ const MultipleItemsCard = ({ item, innerIndex, cartItems, onAddToCart, onIncreme
             )}
 
             <Shadow distance={5} startColor={'rgba(0,0,0,0.1)'} offset={[0, 3]} style={{ borderRadius: 7 }}>
-                <TouchableOpacity onPress={() => { setIsItemImageModalVisible(true) }} >
+                <TouchableOpacity onPress={() => { setIsItemDetailsModalVisible(true) }} >
                     <Image
                         // source={item?.images?.[0] ? { uri: item.images[0] } : require('../../assets/images/placeholderImage.png')}
                         source={imageUri ? { uri: imageUri } : require('../../assets/images/placeholderImage.png')}
@@ -142,6 +232,12 @@ const MultipleItemsCard = ({ item, innerIndex, cartItems, onAddToCart, onIncreme
             </Shadow>
 
             <View style={{ width: '100%' }} className="flex-col justify-between items-center gap-[5px]">
+                <TouchableOpacity onPress={handleShare} className='max-w-[65%]'>
+                    <Text className="text-[16px] items-center">
+                        {item.name}
+                        <Image source={require('../../assets/images/shareImage.png')} style={{ width: 15, height: 15 }} className="w-[20px] h-[20px] ml-[5px]" />
+                    </Text>
+                </TouchableOpacity>
                 <View className="flex-row justify-center items-center w-full px-[7px]">
                     <Text className="text-[22px] font-bold text-primary">
                         ₹{sellingPrice}/
@@ -279,17 +375,20 @@ const MultipleItemsCard = ({ item, innerIndex, cartItems, onAddToCart, onIncreme
                 </View>
             </View>
 
-            <Modal animationType="slide" transparent={true} visible={isItemImageModalVisible}>
-                <TouchableOpacity
-                    onPress={() => setIsItemImageModalVisible(false)}
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={isItemDetailsModalVisible}
+                onRequestClose={handleCloseItemDetailsModal}
+            >
+                <View
+                    // onPress={handleCloseItemDetailsModal}
                     className="flex-1 bg-[#00000060] items-center justify-center"
-                    activeOpacity={1}
+                // activeOpacity={1}
                 >
-
                     <ScrollView
                         stickyHeaderIndices={[0]}
-                        // StickyHeaderComponent={() => <Text className="text-center text-lg font-semibold text-black mb-2 ">{item?.name}</Text>}
-                        className={`bg-white w-[95%] rounded-xl border-y-4 border-primary ${(selectedVariant ? selectedVariant?.variantDescription : item?.description) && (selectedVariant ? selectedVariant?.variantDescription : item?.description) !== "" ? 'max-h-[95%]' : 'max-h-[70%]'}`}
+                        className="bg-white w-[95%] rounded-xl border-y-4 border-primary max-h-[95%]"
                         contentContainerStyle={{
                             alignItems: "center",
                             justifyContent: "center",
@@ -297,57 +396,231 @@ const MultipleItemsCard = ({ item, innerIndex, cartItems, onAddToCart, onIncreme
                             gap: 5,
                         }}
                     >
-                        <View className='w-full' >
-                            <Text className="text-center text-lg font-semibold text-black bg-white p-[5px] w-screen">{item?.name}</Text>
-                            <Image style={{ height: 30, width: 30 }} className="w-[20px] h-[20px] absolute top-[0px] right-[20px] bg-white rounded-full" source={require("../../assets/images/crossImage.png")} ></Image>
+                        {/* Header */}
+                        <View className='w-full flex-row items-center justify-between bg-white rounded-b-[5px] min-w-[100%]'>
+                            <Text className="text-center text-lg font-semibold text-black p-[5px] flex-1">
+                                {item?.name}
+                            </Text>
+                            <TouchableOpacity
+                                onPress={handleCloseItemDetailsModal}
+                                className="bg-white rounded-full p-[3px] z-50"
+                            >
+                                <Image
+                                    source={require("../../assets/images/crossImage.png")}
+                                    style={{ height: 25, width: 25 }}
+                                />
+                            </TouchableOpacity>
                         </View>
 
                         {/* Main Image */}
-                        <Shadow distance={5} startColor={'rgba(0,0,0,0.1)'} offset={[0, 3]} style={{ borderRadius: 7 }}>
-                            <Image
-                                style={{ height: 300, width: 300 }}
-                                className="rounded-xl"
-                                source={selectedImage ? { uri: selectedImage } : require("../../assets/images/placeholderImage.png")}
-                                resizeMode="cover"
-                            />
-                        </Shadow>
+                        <Image
+                            style={{ height: 300, width: 300 }}
+                            className="rounded-xl"
+                            source={selectedImage ? { uri: selectedImage } : require("../../assets/images/icon.png")}
+                            resizeMode="cover"
+                        />
 
                         {/* Thumbnails Row */}
-                        <View className="w-full flex-row justify-between">
-                            {/* {Array.from({ length: item?.images.length }).map((_, idx) => ( */}
-                            {(item?.images && Array.isArray(item.images) ? item.images : []).map((imageUri, idx) => (
-                                <TouchableOpacity
-                                    key={idx}
-                                    className="w-[22.5%] "
-                                    onPress={() => setSelectedImage(item?.images?.[idx])}
-                                >
-                                    {item?.images?.[idx] ? (
+                        {item?.images && item.images.length > 1 && (
+                            <View className="w-full flex-row justify-between flex-wrap">
+                                {item.images.map((image, idx) => (
+                                    <TouchableOpacity
+                                        key={idx}
+                                        className="w-[22.5%] mb-2"
+                                        onPress={() => setSelectedImage(image)}
+                                    >
                                         <Image
-                                            source={{ uri: item?.images?.[idx] }}
-                                            className={`rounded-md h-20 ${selectedImage === item?.images?.[idx] ? "border-2 border-primary" : ""}`}
+                                            source={{ uri: image }}
+                                            className={`rounded-md h-20 ${selectedImage === image ? "border-2 border-primary" : ""}`}
                                             resizeMode="cover"
                                         />
-                                    ) : (
-                                        // <View className="h-20 w-full rounded-md bg-primaryLight items-center justify-center">
-                                        //   <Text className="text-xl text-white font-bold">+</Text>
-                                        // </View>
-                                        <></>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        )}
+
+                        {/* Variants Selection */}
+                        {item?.variants && item.variants.length > 0 && (
+                            <View className="w-full mt-[rpx]">
+                                <Text className="text-center font-bold text-base mb-[5px]">Available Variants</Text>
+                                <View className="">
+                                    {item.variants
+                                        .filter(variant => variant.hidden === false)
+                                        .map((variant, index) => {
+                                            const variantQuantity = getQuantityForParticularItem(variant.id);
+                                            const isSelected = selectedVariant?.id === variant.id;
+                                            const isOutOfStock = Number(variant.variantStock) === 0;
+
+                                            return (
+                                                <View
+                                                    key={variant.id}
+                                                    className={`p-[5px] mb-[3px] rounded-lg gap-[2px] border-2 ${isSelected ? 'border-primary bg-blue-50' : 'border-gray-200'} ${isOutOfStock ? 'border-primaryRed bg-[#ccc]' : ''}`}
+                                                >
+                                                    {isOutOfStock && <Text className='text-[24px] absolute self-center text-white font-bold top-[30%]' >Out Of Stock</Text>}
+                                                    <Text className={`text-[16px] font-bold ${isSelected ? 'text-primary' : 'text-black'} ${isOutOfStock ? 'line-through' : ''} w-full text-center`}>
+                                                        {variant.variantName}
+                                                    </Text>
+
+                                                    <View className="flex-row justify-between items-center w-full">
+                                                        <Text className="text-[12px] line-through text-primaryRed">
+                                                            MRP: ₹{variant.prices[0].variantMrp}
+                                                        </Text>
+                                                        <Text className={`text-[12px] ${isOutOfStock ? 'text-red-500' : 'text-[#8B8000]'}`}>
+                                                            Stock: {variant.variantStock}
+                                                        </Text>
+                                                    </View>
+
+                                                    <View className="flex-row justify-between items-center w-full">
+                                                        <Text className="text-[16px] font-bold text-primary">
+                                                            ₹{variant.prices[0].variantSellingPrice}
+                                                            <Text className="text-[12px]">/{variant.prices[0].variantMeasurement}</Text>
+                                                        </Text>
+                                                        <View className="flex-row items-center gap-2">
+                                                            {/* Selection Radio Button */}
+                                                            <TouchableOpacity
+                                                                disabled={isOutOfStock}
+                                                                onPress={() => {
+                                                                    if (!isOutOfStock) {
+                                                                        setSelectedVariant(variant);
+                                                                    }
+                                                                }}
+                                                                className={`w-6 h-6 rounded-full border-2 ${isSelected ? 'bg-primary border-primary' : 'border-gray-400'
+                                                                    } ${isOutOfStock ? 'border-gray-300' : ''}`}
+                                                            >
+                                                                {isSelected && (
+                                                                    <View className="w-3 h-3 bg-white rounded-full m-auto" />
+                                                                )}
+                                                            </TouchableOpacity>
+
+                                                            {/* Cart Controls */}
+                                                            {!isOutOfStock && (
+                                                                variantQuantity === 0 ? (
+                                                                    <TouchableOpacity
+                                                                        onPress={() => onAddToCart(item, variant)}
+                                                                        className="bg-primary rounded-[5px] p-[5px] min-w-[80px]"
+                                                                    >
+                                                                        <Text className="text-white text-sm font-bold text-center">Add +</Text>
+                                                                    </TouchableOpacity>
+                                                                ) : (
+                                                                    <View className="flex-row items-center bg-primary rounded-[5px] justify-center gap-[15px] px-[8px]">
+                                                                        <TouchableOpacity
+                                                                            onPress={() => onDecrement(variant.id, variantQuantity)}
+                                                                            className=""
+                                                                        >
+                                                                            <Text className="text-white text-lg">–</Text>
+                                                                        </TouchableOpacity>
+                                                                        <Text className="text-white text-sm font-bold ">
+                                                                            {variantQuantity}
+                                                                        </Text>
+                                                                        <TouchableOpacity
+                                                                            onPress={() => onIncrement(variant.id)}
+                                                                            className=""
+                                                                        >
+                                                                            <Text className="text-white text-lg">+</Text>
+                                                                        </TouchableOpacity>
+                                                                    </View>
+                                                                )
+                                                            )}
+                                                        </View>
+                                                    </View>
+                                                </View>
+                                            );
+                                        })}
+                                </View>
+                            </View>
+                        )}
+
+                        {/* For items without variants */}
+                        {(!item?.variants || item.variants.length === 0) && (
+                            <View className="w-full mt-3">
+                                {/* Price Information */}
+                                <View className="w-full flex-row justify-between items-center p-3 bg-gray-50 rounded-lg">
+                                    <View>
+                                        <Text className="text-lg font-bold text-primary">
+                                            ₹{item.prices[0].sellingPrice}
+                                            <Text className="text-sm">/{item.prices[0].measurement}</Text>
+                                        </Text>
+                                        {item.prices[0].mrp > item.prices[0].sellingPrice && (
+                                            <Text className="text-sm line-through text-gray-500">
+                                                MRP: ₹{item.prices[0].mrp}
+                                            </Text>
+                                        )}
+                                        <Text className={`text-xs ${item.stock === 0 ? 'text-red-500' : 'text-green-600'}`}>
+                                            Stock: {item.stock}
+                                        </Text>
+                                    </View>
+
+                                    {/* Cart Controls for non-variant items */}
+                                    {item.stock > 0 && (
+                                        <View className='flex-row'>
+                                            {quantity === 0 ? (
+                                                <TouchableOpacity
+                                                    onPress={() => {
+                                                        onAddToCart(item, null);
+                                                        handleCloseItemDetailsModal();
+                                                    }}
+                                                    className="bg-primary rounded-[5px] px-4 py-2"
+                                                >
+                                                    <Text className="text-white text-sm font-bold">Add to Cart</Text>
+                                                </TouchableOpacity>
+                                            ) : (
+                                                <View className="flex-row items-center bg-primary rounded-[5px]">
+                                                    <TouchableOpacity
+                                                        onPress={() => onDecrement(item.id, quantity)}
+                                                        className="px-3 py-2"
+                                                    >
+                                                        <Text className="text-white text-lg">–</Text>
+                                                    </TouchableOpacity>
+                                                    <Text className="text-white text-sm font-bold px-3">
+                                                        {quantity}
+                                                    </Text>
+                                                    <TouchableOpacity
+                                                        onPress={() => onIncrement(item.id)}
+                                                        className="px-3 py-2"
+                                                    >
+                                                        <Text className="text-white text-lg">+</Text>
+                                                    </TouchableOpacity>
+                                                </View>
+                                            )}
+                                        </View>
                                     )}
-                                </TouchableOpacity>
-                            ))}
-                        </View>
+                                </View>
+                            </View>
+                        )}
+
+                        {/* Selected Variant Summary */}
+                        {selectedVariant && (
+                            <View className="w-full bg-primary bg-opacity-10 p-3 rounded-lg mt-3">
+                                <Text className="text-center font-bold text-primary mb-2">Selected Variant</Text>
+                                <View className="flex-row justify-between items-center">
+                                    <View>
+                                        <Text className="font-semibold">{selectedVariant.variantName}</Text>
+                                        <Text className="text-lg font-bold text-primary">
+                                            ₹{selectedVariant.prices[0].variantSellingPrice}
+                                            <Text className="text-sm">/{selectedVariant.prices[0].variantMeasurement}</Text>
+                                        </Text>
+                                    </View>
+                                    <Text className="text-sm text-green-600">
+                                        In Stock: {selectedVariant.variantStock}
+                                    </Text>
+                                </View>
+                            </View>
+                        )}
 
                         {/* Description */}
-                        {(selectedVariant ? selectedVariant?.variantDescription : item?.description) && (selectedVariant ? selectedVariant?.variantDescription : item?.description) !== "" && (
-                            <>
-                                <Text className="text-center font-bold text-base">Description</Text>
-                                <View className="border border-gray-300 rounded-xl w-full p-3">
-                                    <Text className="text-sm text-gray-700">{(selectedVariant ? selectedVariant?.variantDescription : item?.description)}</Text>
-                                </View>
-                            </>
-                        )}
+                        {(selectedVariant ? selectedVariant?.variantDescription : item?.description) &&
+                            (selectedVariant ? selectedVariant?.variantDescription : item?.description) !== "" && (
+                                <>
+                                    <Text className="text-center font-bold text-base w-full mt-3">Description</Text>
+                                    <View className="border border-gray-300 rounded-xl w-full p-3">
+                                        <Text className="text-sm text-gray-700">
+                                            {selectedVariant ? selectedVariant?.variantDescription : item?.description}
+                                        </Text>
+                                    </View>
+                                </>
+                            )}
                     </ScrollView>
-                </TouchableOpacity>
+                </View>
             </Modal>
         </View>
     )

@@ -660,7 +660,7 @@ const ItemCard = ({ item, cartItems, onAddToCart, onIncrement, onDecrement, isSt
               )}
           </ScrollView>
         </View>
-      </Modal >
+      </Modal>
 
     </View >
   );
