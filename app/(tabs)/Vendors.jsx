@@ -64,6 +64,7 @@ const Vendors = () => {
   const shouldShowMyOrders = fromCustomisedQR && ordersList.length !== 0;
   const [categories, setCategories] = useState([]);
   const [isVendorVisiting, setIsVendorVisiting] = useState(decryptData(params.isVendorVisiting) === 'true' ? true : false)
+  const [itemIdForItemDetailModal, setItemIdForItemDetailModal] = useState(null)
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -158,6 +159,13 @@ const Vendors = () => {
     const fromCustomisedQRChangedEvent = new CustomEvent('fromCustomisedQRChanged');
     document.dispatchEvent(fromCustomisedQRChangedEvent);
   }, [params.fromCustomisedQR]);
+
+  useEffect(() => {
+    const itemCardParam = decryptData(params.itemCard);
+    if (itemCardParam) {
+      setItemIdForItemDetailModal(itemCardParam);
+    }
+  }, [params.itemCard]);
 
   const fetchCartItemsForCustomisedQR = () => {
     try {
@@ -1027,6 +1035,8 @@ const Vendors = () => {
                         return (
                           <View key={item.id} className={`w-full bg-[white] gap-[3px] ${section.categoryName !== 'Uncategorized' ? 'bg-[#00000020] border-l-[10px] border-wheat' : ''}`}>
                             <ItemCard
+                              itemIdForItemDetailModal={itemIdForItemDetailModal}
+                              setItemIdForItemDetailModal={setItemIdForItemDetailModal}
                               item={item}
                               cartItems={cartSource}
                               onAddToCart={handleAddToCartWithUpdate}
