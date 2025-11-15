@@ -148,7 +148,7 @@ const ItemCard = ({ item, cartItems, onAddToCart, onIncrement, onDecrement, isSt
     try {
       const currentUrl = new URL(window.location.href);
       const vendorParam = currentUrl.searchParams.get('vendor');
-      const vendorLink = `${window.location.origin}${window.location.pathname}?vendor=${vendorParam}&itemCard=${encryptData(item?.variants?.length > 0 ? selectedVariant?.id : item.id)}`;
+      const vendorLink = `https://customers.unoshops.com/Vendors?vendor=${vendorParam}&itemCard=${encryptData(item?.variants?.length > 0 ? selectedVariant?.id : item.id)}`;
 
       const imageUrl = item?.images?.[0];
 

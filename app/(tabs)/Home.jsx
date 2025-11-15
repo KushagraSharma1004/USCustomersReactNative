@@ -220,7 +220,8 @@ const Home = () => {
               businessImageURL: vendor.businessImageURL,
               distance: vendor.distance,
               available: vendor.available,
-              isVendorActive: vendor.isVendorActive
+              isVendorActive: vendor.isVendorActive,
+              vendor: vendor
             });
           }
         });
@@ -463,6 +464,62 @@ const Home = () => {
       setHasMoreProducts(false);
     }
   }, [selectedMode, activeVendorsForProducts, selectedCategoryId, fetchProductsForVendors]);
+
+  const handleShareItem = async (vendorMobileNumber, item) => {
+    try {
+      // const currentUrl = new URL(window.location.href);
+      // const vendorParam = currentUrl.searchParams.get('vendor');
+      const vendorLink = `https://customers.unoshops.com/Vendors?vendor=${encodeURIComponent(encryptData(vendorMobileNumber))}&itemCard=${encryptData(item?.variants?.length > 0 ? selectedVariant?.id : item.id)}`;
+
+      const imageUrl = item?.images?.[0];
+
+      if (!imageUrl) {
+        throw new Error("No image available to share");
+      }
+
+      // Fetch image and convert to Blob
+      const response = await fetch(imageUrl);
+      if (!response.ok) throw new Error("Failed to fetch image");
+      const blob = await response.blob();
+
+      // Create File with proper name and type
+      const file = new File([blob], `${item.name.replace(/\s+/g, '_')}.jpg`, {
+        type: blob.type || 'image/jpeg',
+      });
+
+      // NOW check if sharing files is supported
+      const shareData = {
+        title: item.name,
+        text: `Check out this product: ${item.name} on UnoShops.`,
+        url: vendorLink,
+        files: [file],
+      };
+
+      const canShareFiles = navigator.share && navigator.canShare && navigator.canShare(shareData);
+
+      if (canShareFiles) {
+        await navigator.share(shareData);
+      } else {
+        // Fallback: Share without file
+        await navigator.share({
+          title: item.name,
+          text: `Check out this product: ${item.name} on UnoShops.`,
+          url: vendorLink,
+        });
+      }
+    } catch (error) {
+      console.error('Sharing failed:', error);
+
+      // Final fallback: Copy link
+      const vendorLink = `https://customers.unoshops.com/Vendors?vendor=${encodeURIComponent(encryptData(vendor?.vendorMobileNumber))}&itemCard=${encryptData(item?.variants?.length > 0 ? selectedVariant?.id : item.id)}`;
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(vendorLink);
+        alert("Link copied to clipboard!");
+      } else {
+        alert("Sharing not supported. Link: " + vendorLink);
+      }
+    }
+  };
 
   if (loadingLocation) {
     return (
@@ -817,6 +874,9 @@ const Home = () => {
                   // --- Sleek Visuals & Responsiveness: max-w-[48%] for 2 items per row, plus margin for spacing ---
                   className="flex-1 m-[2px] border border-gray-100 rounded-lg bg-white shadow-md min-h-[230px]"
                 >
+                  <TouchableOpacity onPress={() => handleShareItem(item?.vendorMobileNumber, item) } className='absolute z-50 top-[5px] right-[5px] bg-white items-center justiy-center p-[1px] rounded-[5px]'>
+                    <Image source={require('../../assets/images/shareImage2.png')} style={{ width: 20, height: 20 }} className="w-[30px] h-[30px] rounded-[5px]" />
+                  </TouchableOpacity>
                   {/* --- Style Prop & Aspect Ratio for Image --- */}
                   <Image
                     source={item.images?.[0] ? { uri: item.images[0] } : require('../../assets/images/placeholderImage.png')}
