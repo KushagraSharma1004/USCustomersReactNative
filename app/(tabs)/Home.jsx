@@ -469,7 +469,7 @@ const Home = () => {
     try {
       // const currentUrl = new URL(window.location.href);
       // const vendorParam = currentUrl.searchParams.get('vendor');
-      const vendorLink = `https://customers.unoshops.com/Vendors?vendor=${encodeURIComponent(encryptData(vendorMobileNumber))}&itemCard=${encryptData(item?.variants?.length > 0 ? selectedVariant?.id : item.id)}`;
+      const vendorLink = `https://customers.unoshops.com/Vendors?vendor=${encodeURIComponent(encryptData(vendorMobileNumber))}&itemCard=${encryptData(item.id)}`;
 
       const imageUrl = item?.images?.[0];
 
@@ -511,7 +511,7 @@ const Home = () => {
       console.error('Sharing failed:', error);
 
       // Final fallback: Copy link
-      const vendorLink = `https://customers.unoshops.com/Vendors?vendor=${encodeURIComponent(encryptData(vendor?.vendorMobileNumber))}&itemCard=${encryptData(item?.variants?.length > 0 ? selectedVariant?.id : item.id)}`;
+      const vendorLink = `https://customers.unoshops.com/Vendors?vendor=${encodeURIComponent(encryptData(vendorMobileNumber))}&itemCard=${encryptData(item.id)}`;
       if (navigator.clipboard) {
         await navigator.clipboard.writeText(vendorLink);
         alert("Link copied to clipboard!");
@@ -874,8 +874,19 @@ const Home = () => {
                   // --- Sleek Visuals & Responsiveness: max-w-[48%] for 2 items per row, plus margin for spacing ---
                   className="flex-1 m-[2px] border border-gray-100 rounded-lg bg-white shadow-md min-h-[230px]"
                 >
-                  <TouchableOpacity onPress={() => handleShareItem(item?.vendorMobileNumber, item) } className='absolute z-50 top-[5px] right-[5px] bg-white items-center justiy-center p-[1px] rounded-[5px]'>
-                    <Image source={require('../../assets/images/shareImage2.png')} style={{ width: 20, height: 20 }} className="w-[30px] h-[30px] rounded-[5px]" />
+                  <TouchableOpacity
+                    onPress={() => handleShareItem(item?.vendorMobileNumber, item)}
+                    className='absolute z-50 top-[0px] right-[0px] items-center justify-center pl-[25px] pb-[25px]'
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} // Extra safety (optional)
+                  >
+                    <View className='bg-white rounded-tr-[5px] rounded-bl-[5px] p-[1px]' >
+                      <Image
+                        source={require('../../assets/images/shareImage2.png')}
+                        style={{ width: 15, height: 15 }}
+                        className="w-5 h-5"
+                      />
+                    </View>
                   </TouchableOpacity>
                   {/* --- Style Prop & Aspect Ratio for Image --- */}
                   <Image
