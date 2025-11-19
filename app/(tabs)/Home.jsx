@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, use } from 'react'
-import { View, Text, FlatList, Image, Dimensions, TouchableOpacity, Linking, ActivityIndicator, StyleSheet, TextInput, Modal } from 'react-native'
+import { View, Text, FlatList, Image, TouchableOpacity, Linking, ActivityIndicator, Dimensions, TextInput, Modal } from 'react-native'
 import { useAuth } from '../context/AuthContext'
 import Header from '../components/Header'
 import { FullStarSVG, PartialStarSVG, EmptyStarSVG } from '../components/StarSVGs'
@@ -13,6 +13,7 @@ import html2canvas from 'html2canvas';
 import Loader from '../components/Loader'
 import { getStorage, ref, listAll, getDownloadURL, getMetadata } from 'firebase/storage';
 import { Video } from 'expo-av'
+
 /**
  * Get customer's current location
  * @returns {Promise<Object>} - {latitude: number, longitude: number}
@@ -130,6 +131,7 @@ const Home = () => {
   const [maxRounds, setMaxRounds] = useState(0);
   const snapshotVendors = useRef([]);
   const [adsData, setAdsData] = useState([]);
+  const SCREEN_WIDTH = Dimensions.get('window').width
 
   const categoriesWithProducts = useMemo(() => {
     const set = new Set();
@@ -963,7 +965,7 @@ const Home = () => {
                       {item.isVideo ? (
                         <Video
                           source={{ uri: item.url }}
-                          style={{ width: '100%', height: 200, borderRadius:5 }}
+                          style={{ width: '100%', maxWidth: 500, height: SCREEN_WIDTH/1.8, maxHeight: 300, borderRadius:5 }}
                           resizeMode="cover"
                           useNativeControls
                           isLooping={true}
