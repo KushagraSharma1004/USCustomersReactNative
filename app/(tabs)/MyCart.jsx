@@ -296,7 +296,7 @@ const MyCart = () => {
         setIsCommonLoaderVisible(false);
       },
       (error) => {
-        console.log('Error fetching vendor details: ', error);
+        // console.log('Error fetching vendor details: ', error);
         setIsCommonLoaderVisible(false);
       }
     );

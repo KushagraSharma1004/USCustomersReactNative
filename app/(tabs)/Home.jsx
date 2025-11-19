@@ -11,7 +11,8 @@ import { db } from '@/firebase'
 import MyVendorsListModal from '../components/MyVendorsListModal'
 import html2canvas from 'html2canvas';
 import Loader from '../components/Loader'
-
+import { getStorage, ref, listAll, getDownloadURL, getMetadata } from 'firebase/storage';
+import { Video } from 'expo-av'
 /**
  * Get customer's current location
  * @returns {Promise<Object>} - {latitude: number, longitude: number}
@@ -128,6 +129,7 @@ const Home = () => {
   const [currentRound, setCurrentRound] = useState(0);
   const [maxRounds, setMaxRounds] = useState(0);
   const snapshotVendors = useRef([]);
+  const [adsData, setAdsData] = useState([]);
 
   const categoriesWithProducts = useMemo(() => {
     const set = new Set();
@@ -241,8 +243,76 @@ const Home = () => {
       );
     }
 
+    const finalList = [];
+    products.forEach((pro, index) => {
+      finalList.push(pro);
+
+      if ((index + 1) % 9 === 0) {
+        const ad = adsData?.[index % adsData.length]; // rotate ads
+
+        finalList.push({
+          type: 'ad',
+          adData: ad,
+          url: ad?.url,
+          isVideo: ad?.isVideo,
+          name: ad?.name,
+        });
+      }
+    });
+
+    products = finalList;
+
     return products;
-  }, [allProducts, searchQuery, allProductsByVendor, selectedCategoryId, snapshotVendors]);
+  }, [allProducts, searchQuery, allProductsByVendor, selectedCategoryId, snapshotVendors, adsData]);
+
+  const groupedProducts = useMemo(() => {
+    const products = [];
+    let productGroup = [];
+
+    // Filter out ads from sortedProducts first
+    const filteredProducts = sortedProducts.filter(item => item.type !== 'ad');
+
+    let adCounter = 0; // Track ad insertion count separately
+
+    filteredProducts.forEach((pro, index) => {
+      productGroup.push(pro);
+
+      // Create groups of 3 products
+      if (productGroup.length === 3) {
+        products.push({
+          type: 'product-group',
+          products: [...productGroup]
+        });
+        productGroup = [];
+      }
+
+      // Add ad after every 9 products (after 3 groups)
+      // Use (index + 1) because we want after 9, 18, 27 products etc.
+      if ((index + 1) % 9 === 0) {
+        const ad = adsData?.[adCounter % adsData.length]; // Use adCounter for rotation
+        if (ad) { // Only add ad if it exists
+          products.push({
+            type: 'ad',
+            adData: ad,
+            url: ad?.url,
+            isVideo: ad?.isVideo,
+            name: ad?.name,
+          });
+          adCounter++; // Increment ad counter only when ad is actually added
+        }
+      }
+    });
+
+    // Add any remaining products that don't form a complete group of 3
+    if (productGroup.length > 0) {
+      products.push({
+        type: 'product-group',
+        products: [...productGroup]
+      });
+    }
+
+    return products;
+  }, [sortedProducts, adsData]);
 
   useEffect(() => {
     // getCurrentLocation()
@@ -520,6 +590,38 @@ const Home = () => {
       }
     }
   };
+
+  const fetchAds = useCallback(async () => {
+    try {
+      const storage = getStorage();
+      const adsRef = ref(storage, 'uploads/');
+      const result = await listAll(adsRef);
+
+      const ads = await Promise.all(
+        result.items.map(async (itemRef) => {
+          const url = await getDownloadURL(itemRef);
+          const metadata = await getMetadata(itemRef);
+          const isVideo = itemRef.name.match(/\.(mp4|mov|avi|webm|mkv|3gp)$/i);
+
+          return {
+            name: itemRef.name,
+            url,
+            isVideo,
+            size: metadata.size,
+            timeCreated: metadata.timeCreated,
+          };
+        })
+      );
+
+      setAdsData(ads.sort((a, b) => b.timeCreated.localeCompare(a.timeCreated)));
+    } catch (error) {
+      console.error('Error fetching ads:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAds();
+  }, [fetchAds]);
 
   if (loadingLocation) {
     return (
@@ -828,7 +930,7 @@ const Home = () => {
       )}
 
       {selectedMode === 'Products' && (
-        <View className={`${selectedCategoryId ? 'bg-primaryLight' : 'bg-white'} w-full flex-1 p-1`}>
+        <View className={`${selectedCategoryId ? 'bg-primaryLight' : 'bg-white'} w-full flex-1 p-[5px]`}>
           {loadingProducts && !sortedProducts.length ? (
             <View className="flex-1 justify-center items-center">
               <ActivityIndicator size="large" color="#E48108" />
@@ -836,11 +938,10 @@ const Home = () => {
             </View>
           ) : (
             <FlatList
-              data={sortedProducts.filter((item) => item.images?.[0])}
-              // --- Performance: Use numColumns for better grid performance and responsiveness ---
-              numColumns={3}
-              keyExtractor={(item) => `${item.id}-${item.vendorMobileNumber}`}
-              // Use margin/padding for spacing around the grid
+              data={groupedProducts}
+              keyExtractor={(item, index) =>
+                item.type === 'ad' ? `ad-${index}` : `group-${index}`
+              }
               contentContainerStyle={{ paddingHorizontal: 2, paddingBottom: 50 }}
               showsVerticalScrollIndicator
               ListHeaderComponent={() => (
@@ -855,67 +956,94 @@ const Home = () => {
                   </View>
                 </>
               )}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  onPress={() => {
-                    if (item.isVendorActive) {
-                      if (myVendors.find(myVendor => myVendor.vendorMobileNumber === item.vendorMobileNumber)) {
-                        router.push(`/Vendors/?vendor=${encodeURIComponent(encryptData(item.vendorMobileNumber))}`)
-                      } else {
-                        setAddVendorInMyVendorsListBusinessName(item.businessName)
-                        setAddVendorInMyVendorsListMobileNumber(item.vendorMobileNumber)
-                        return
-                      }
-                    } else {
-                      alert('Vendor is currently unavailable.')
-                      return
-                    }
-                  }}
-                  // --- Sleek Visuals & Responsiveness: max-w-[48%] for 2 items per row, plus margin for spacing ---
-                  className="flex-1 m-[2px] border border-gray-100 rounded-lg bg-white shadow-md min-h-[230px]"
-                >
-                  <TouchableOpacity
-                    onPress={() => handleShareItem(item?.vendorMobileNumber, item)}
-                    className='absolute z-50 top-[0px] right-[0px] items-center justify-center pl-[25px] pb-[25px]'
-                    activeOpacity={0.7}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} // Extra safety (optional)
-                  >
-                    <View className='bg-white rounded-tr-[5px] rounded-bl-[5px] p-[1px]' >
-                      <Image
-                        source={require('../../assets/images/shareImage2.png')}
-                        style={{ width: 15, height: 15 }}
-                        className="w-5 h-5"
-                      />
+              renderItem={({ item }) => {
+                if (item.type === 'ad') {
+                  return (
+                    <View className="w-full mb-[5px]">
+                      {item.isVideo ? (
+                        <Video
+                          source={{ uri: item.url }}
+                          style={{ width: '100%', height: 200, borderRadius:5 }}
+                          resizeMode="cover"
+                          useNativeControls
+                          isLooping={true}
+                          isMuted={true}
+                          shouldPlay={true}
+                        />
+                      ) : (
+                        <Image
+                          source={{ uri: item.url }}
+                          className="w-full h-[200px] rounded-[5px]"
+                          resizeMode="cover"
+                        />
+                      )}
                     </View>
-                  </TouchableOpacity>
-                  {/* --- Style Prop & Aspect Ratio for Image --- */}
-                  <Image
-                    source={item.images?.[0] ? { uri: item.images[0] } : require('../../assets/images/placeholderImage.png')}
-                    className="w-full rounded-lg mb-2"
-                    // Using aspect-square and full width for a sleek, responsive image container
-                    style={{ aspectRatio: 1, width: '100%' }}
-                    resizeMode="cover"
-                  />
+                  );
+                } else {
+                  // Render product group (3 items in a row)
+                  return (
+                    <View className="flex-row justify-between mb-[5px]">
+                      {item.products.map((product, productIndex) => (
+                        <TouchableOpacity
+                          key={`${product.id}-${product.vendorMobileNumber}-${productIndex}`}
+                          onPress={() => {
+                            if (product.isVendorActive) {
+                              if (myVendors.find(myVendor => myVendor.vendorMobileNumber === product.vendorMobileNumber)) {
+                                router.push(`/Vendors/?vendor=${encodeURIComponent(encryptData(product.vendorMobileNumber))}`)
+                              } else {
+                                setAddVendorInMyVendorsListBusinessName(product.businessName)
+                                setAddVendorInMyVendorsListMobileNumber(product.vendorMobileNumber)
+                                return
+                              }
+                            } else {
+                              alert('Vendor is currently unavailable.')
+                              return
+                            }
+                          }}
+                          className="flex-1 m-[2px] border border-gray-100 rounded-lg bg-white shadow-md min-h-[230px]"
+                        >
+                          <TouchableOpacity
+                            onPress={() => handleShareItem(product?.vendorMobileNumber, product)}
+                            className='absolute z-50 top-[0px] right-[0px] items-center justify-center pl-[25px] pb-[25px]'
+                            activeOpacity={0.7}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                          >
+                            <View className='bg-white rounded-tr-[5px] rounded-bl-[5px] p-[1px]' >
+                              <Image
+                                source={require('../../assets/images/shareImage2.png')}
+                                style={{ width: 15, height: 15 }}
+                                className="w-5 h-5"
+                              />
+                            </View>
+                          </TouchableOpacity>
 
-                  <View className="flex-1 justify-between gap-1 px-[7px] pb-[7px]">
-                    {/* Ensure Text doesn't overflow visually */}
-                    <Text className="font-semibold" numberOfLines={2}>{item.name}</Text>
+                          <Image
+                            source={product.images?.[0] ? { uri: product.images[0] } : require('../../assets/images/placeholderImage.png')}
+                            className="w-full rounded-lg mb-2"
+                            style={{ aspectRatio: 1, width: '100%' }}
+                            resizeMode="cover"
+                          />
 
-                    <View className='flex-col'>
-                      {/* Price Display with improved layout */}
-                      <Text className="text-xs text-gray-400 line-through">₹{item.prices?.[0]?.mrp || 'N/A'}</Text>
-                      <Text className="text-[12px] text-green-600 font-bold">
-                        ₹{item.prices?.[0]?.sellingPrice || 'N/A'} / {item.prices?.[0]?.measurement || ''}
-                      </Text>
+                          <View className="flex-1 justify-between gap-1 px-[7px] pb-[7px]">
+                            <Text className="font-semibold" numberOfLines={2}>{product.name}</Text>
+
+                            <View className='flex-col'>
+                              <Text className="text-xs text-gray-400 line-through">₹{product.prices?.[0]?.mrp || 'N/A'}</Text>
+                              <Text className="text-[12px] text-green-600 font-bold">
+                                ₹{product.prices?.[0]?.sellingPrice || 'N/A'} / {product.prices?.[0]?.measurement || ''}
+                              </Text>
+                            </View>
+
+                            <Text className="text-[10px]" numberOfLines={2}>Seller: {product.businessName || 'Business'}</Text>
+
+                            {product.available === false && <Text className="text-xs text-primary">Takeaway Only</Text>}
+                          </View>
+                        </TouchableOpacity>
+                      ))}
                     </View>
-
-                    <Text className="text-[10px]" numberOfLines={2}>Seller: {item.businessName || 'Business'}</Text>
-
-                    {/* Vendor Availability */}
-                    {item.available === false && <Text className="text-xs text-primary">Takeaway Only</Text>}
-                  </View>
-                </TouchableOpacity>
-              )}
+                  );
+                }
+              }}
               onEndReached={() => {
                 if (!loadingProducts && hasMoreProducts) {
                   setLoadingProducts(true);

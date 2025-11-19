@@ -115,7 +115,7 @@ const TabsLayout = () => {
             const vendorData = vendorDocSnap.data()
             setVendorFullData(vendorData)
         } catch (error) {
-            console.log('Error fetching vendor details: ', error)
+            // console.log('Error fetching vendor details: ', error)
         }
     }
 
