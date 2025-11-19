@@ -247,7 +247,7 @@ const Home = () => {
     products.forEach((pro, index) => {
       finalList.push(pro);
 
-      if ((index + 1) % 9 === 0) {
+      if ((index + 1) % 9 === 0 || (index + 1) === 1) {
         const ad = adsData?.[index % adsData.length]; // rotate ads
 
         finalList.push({
@@ -288,7 +288,7 @@ const Home = () => {
 
       // Add ad after every 9 products (after 3 groups)
       // Use (index + 1) because we want after 9, 18, 27 products etc.
-      if ((index + 1) % 9 === 0) {
+      if ((index + 1) % 9 === 0 || (index + 1) === 1) {
         const ad = adsData?.[adCounter % adsData.length]; // Use adCounter for rotation
         if (ad) { // Only add ad if it exists
           products.push({
@@ -930,7 +930,7 @@ const Home = () => {
       )}
 
       {selectedMode === 'Products' && (
-        <View className={`${selectedCategoryId ? 'bg-primaryLight' : 'bg-white'} w-full flex-1 p-[5px]`}>
+        <View className={`${selectedCategoryId ? 'bg-primaryLight' : 'bg-white'} w-full flex-1`}>
           {loadingProducts && !sortedProducts.length ? (
             <View className="flex-1 justify-center items-center">
               <ActivityIndicator size="large" color="#E48108" />
@@ -946,7 +946,7 @@ const Home = () => {
               showsVerticalScrollIndicator
               ListHeaderComponent={() => (
                 <>
-                  <View className='bg-white w-[98%] self-center justify-between rounded-[5px] flex-row' >
+                  <View className='bg-white w-[98%] self-center justify-between rounded-[5px] flex-row mb-[3px]' >
                     <TouchableOpacity onPress={() => setSelectedMode('Vendors')} className={`flex-1 ${selectedMode === 'Vendors' ? 'bg-primary' : 'border border-[#ccc]'} p-[10px] rounded-l-[5px]`} >
                       <Text className={`${selectedMode === 'Vendors' ? 'text-white' : 'text-black'} text-center text-[16px] font-bold`} >Vendors</Text>
                     </TouchableOpacity>
@@ -959,7 +959,7 @@ const Home = () => {
               renderItem={({ item }) => {
                 if (item.type === 'ad') {
                   return (
-                    <View className="w-full mb-[5px]">
+                    <View className="w-full mb-[2px]">
                       {item.isVideo ? (
                         <Video
                           source={{ uri: item.url }}
@@ -982,7 +982,7 @@ const Home = () => {
                 } else {
                   // Render product group (3 items in a row)
                   return (
-                    <View className="flex-row justify-between mb-[5px]">
+                    <View className="flex-row justify-between mb-[2px]">
                       {item.products.map((product, productIndex) => (
                         <TouchableOpacity
                           key={`${product.id}-${product.vendorMobileNumber}-${productIndex}`}
