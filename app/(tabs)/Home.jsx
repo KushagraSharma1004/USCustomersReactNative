@@ -277,6 +277,9 @@ const Home = () => {
     let adCounter = 0; // Track ad insertion count separately
 
     filteredProducts.forEach((pro, index) => {
+      if(!pro?.images?.[0] || pro?.images?.length <= 0){
+        return
+      }
       productGroup.push(pro);
 
       // Create groups of 3 products
