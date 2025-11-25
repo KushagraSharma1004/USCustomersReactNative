@@ -965,7 +965,7 @@ const Home = () => {
                       {item.isVideo ? (
                         <Video
                           source={{ uri: item.url }}
-                          style={{ width: '100%', maxWidth: 500, height: SCREEN_WIDTH/1.8, maxHeight: 300, borderRadius:5 }}
+                          style={{ width: '100%', maxWidth: 500, height: SCREEN_WIDTH / 1.8, maxHeight: 300, borderRadius: 5 }}
                           resizeMode="cover"
                           useNativeControls
                           isLooping={true}
@@ -985,63 +985,65 @@ const Home = () => {
                   // Render product group (3 items in a row)
                   return (
                     <View className="flex-row justify-between mb-[2px]">
-                      {item.products.map((product, productIndex) => (
-                        <TouchableOpacity
-                          key={`${product.id}-${product.vendorMobileNumber}-${productIndex}`}
-                          onPress={() => {
-                            if (product.isVendorActive) {
-                              if (myVendors.find(myVendor => myVendor.vendorMobileNumber === product.vendorMobileNumber)) {
-                                router.push(`/Vendors/?vendor=${encodeURIComponent(encryptData(product.vendorMobileNumber))}`)
+                      {item.products.map((product, productIndex) => {
+                        return (
+                          <TouchableOpacity
+                            key={`${product.id}-${product.vendorMobileNumber}-${productIndex}`}
+                            onPress={() => {
+                              if (product.isVendorActive) {
+                                if (myVendors.find(myVendor => myVendor.vendorMobileNumber === product.vendorMobileNumber)) {
+                                  router.push(`/Vendors/?vendor=${encodeURIComponent(encryptData(product.vendorMobileNumber))}`)
+                                } else {
+                                  setAddVendorInMyVendorsListBusinessName(product.businessName)
+                                  setAddVendorInMyVendorsListMobileNumber(product.vendorMobileNumber)
+                                  return
+                                }
                               } else {
-                                setAddVendorInMyVendorsListBusinessName(product.businessName)
-                                setAddVendorInMyVendorsListMobileNumber(product.vendorMobileNumber)
+                                alert('Vendor is currently unavailable.')
                                 return
                               }
-                            } else {
-                              alert('Vendor is currently unavailable.')
-                              return
-                            }
-                          }}
-                          className="flex-1 m-[2px] border border-gray-100 rounded-lg bg-white shadow-md min-h-[230px]"
-                        >
-                          <TouchableOpacity
-                            onPress={() => handleShareItem(product?.vendorMobileNumber, product)}
-                            className='absolute z-50 top-[0px] right-[0px] items-center justify-center pl-[25px] pb-[25px]'
-                            activeOpacity={0.7}
-                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            }}
+                            className="flex-1 m-[2px] border border-gray-100 rounded-lg bg-white shadow-md min-h-[230px]"
                           >
-                            <View className='bg-white rounded-tr-[5px] rounded-bl-[5px] p-[1px]' >
-                              <Image
-                                source={require('../../assets/images/shareImage2.png')}
-                                style={{ width: 15, height: 15 }}
-                                className="w-5 h-5"
-                              />
+                            <TouchableOpacity
+                              onPress={() => handleShareItem(product?.vendorMobileNumber, product)}
+                              className='absolute z-50 top-[0px] right-[0px] items-center justify-center pl-[25px] pb-[25px]'
+                              activeOpacity={0.7}
+                              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                              <View className='bg-white rounded-tr-[5px] rounded-bl-[5px] p-[1px]' >
+                                <Image
+                                  source={require('../../assets/images/shareImage2.png')}
+                                  style={{ width: 15, height: 15 }}
+                                  className="w-5 h-5"
+                                />
+                              </View>
+                            </TouchableOpacity>
+
+                            <Image
+                              source={product.images?.[0] ? { uri: product.images[0] } : require('../../assets/images/placeholderImage.png')}
+                              className="w-full rounded-lg mb-2"
+                              style={{ aspectRatio: 1, width: '100%' }}
+                              resizeMode="cover"
+                            />
+
+                            <View className="flex-1 justify-between gap-1 px-[7px] pb-[7px]">
+                              <Text className="font-semibold" numberOfLines={2}>{product.name}</Text>
+
+                              <View className='flex-col'>
+                                <Text className="text-xs text-gray-400 line-through">₹{product?.variants?.length > 0 ? product?.variants?.[0]?.prices?.[0]?.variantMrp : product.prices?.[0]?.mrp || 'N/A'}</Text>
+                                <Text className="text-[12px] text-green-600 font-bold">
+                                  ₹{product?.variants?.length > 0 ? product?.variants?.[0]?.prices?.[0]?.variantSellingPrice : product.prices?.[0]?.sellingPrice || 'N/A'} / {product?.variants?.length > 0 ? product?.variants?.[0]?.prices?.[0]?.variantMeasurement : product.prices?.[0]?.measurement || ''}
+                                </Text>
+                              </View>
+
+                              <Text className="text-[10px]" numberOfLines={2}>Seller: {product.businessName || 'Business'}</Text>
+
+                              {product.available === false && <Text className="text-xs text-primary">Takeaway Only</Text>}
                             </View>
                           </TouchableOpacity>
-
-                          <Image
-                            source={product.images?.[0] ? { uri: product.images[0] } : require('../../assets/images/placeholderImage.png')}
-                            className="w-full rounded-lg mb-2"
-                            style={{ aspectRatio: 1, width: '100%' }}
-                            resizeMode="cover"
-                          />
-
-                          <View className="flex-1 justify-between gap-1 px-[7px] pb-[7px]">
-                            <Text className="font-semibold" numberOfLines={2}>{product.name}</Text>
-
-                            <View className='flex-col'>
-                              <Text className="text-xs text-gray-400 line-through">₹{product.prices?.[0]?.mrp || 'N/A'}</Text>
-                              <Text className="text-[12px] text-green-600 font-bold">
-                                ₹{product.prices?.[0]?.sellingPrice || 'N/A'} / {product.prices?.[0]?.measurement || ''}
-                              </Text>
-                            </View>
-
-                            <Text className="text-[10px]" numberOfLines={2}>Seller: {product.businessName || 'Business'}</Text>
-
-                            {product.available === false && <Text className="text-xs text-primary">Takeaway Only</Text>}
-                          </View>
-                        </TouchableOpacity>
-                      ))}
+                        )
+                      })}
                     </View>
                   );
                 }
