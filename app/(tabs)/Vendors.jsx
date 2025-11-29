@@ -335,6 +335,7 @@ const Vendors = () => {
       baseItemId: item.id, // Always track the base item ID
       createdAt: new Date(),
       updatedAt: new Date(),
+      buyingLimit: selectedVariant ? Number(selectedVariant?.buyingLimit || 0) : Number(item?.buyingLimit || 0) || 0
     };
 
     if (isGuest) {
@@ -342,6 +343,12 @@ const Vendors = () => {
       if (!localCart[vendorMobileNumber]) localCart[vendorMobileNumber] = {};
 
       if (localCart[vendorMobileNumber][cartItemId]) {
+        // if(Number(item?.buyingLimit || 0) !== 0){
+        //   if(localCart[vendorMobileNumber][cartItemId].quantity === Number(item?.buyingLimit)){
+        //     alert('Maximum Order Quantity for this item reached.')
+        //     return
+        //   }
+        // }
         localCart[vendorMobileNumber][cartItemId].quantity += 1;
         localCart[vendorMobileNumber][cartItemId].updatedAt = new Date();
       } else {
@@ -389,6 +396,10 @@ const Vendors = () => {
     if (isGuest) {
       let localCart = JSON.parse(localStorage.getItem('cartItems') || '{}');
       if (localCart[vendorMobileNumber] && localCart[vendorMobileNumber][itemId]) {
+        if (Number(localCart[vendorMobileNumber][itemId].quantity) === Number(localCart[vendorMobileNumber][itemId]?.buyingLimit || 0)) {
+          alert(`Maximum quantity - 'limit: ${localCart[vendorMobileNumber][itemId]?.buyingLimit}' reached for '${localCart[vendorMobileNumber][itemId]?.name} ${localCart[vendorMobileNumber][itemId]?.variantName ? ' - ' + localCart[vendorMobileNumber][itemId]?.variantName : ''}'.\n\nCan't add more quantity.`)
+          return
+        }
         localCart[vendorMobileNumber][itemId].quantity += 1;
         localCart[vendorMobileNumber][itemId].updatedAt = new Date();
         localStorage.setItem('cartItems', JSON.stringify(localCart));
@@ -399,6 +410,13 @@ const Vendors = () => {
 
     try {
       const itemRef = doc(db, "customers", customerMobileNumber, "cart", vendorMobileNumber, "items", itemId);
+      const itemDoc = await getDoc(itemRef)
+      const itemSnap = itemDoc.data()
+
+      if (Number(itemSnap?.quantity) === Number(itemSnap?.buyingLimit || 0)) {
+        alert(`Maximum quantity - 'limit: ${itemSnap?.buyingLimit}' reached for '${itemSnap?.name} ${itemSnap?.variantName ? ' - ' + itemSnap?.variantName : ''}'.\n\nCan't add more quantity.`)
+        return
+      }
       await updateDoc(itemRef, {
         quantity: increment(1),
         updatedAt: new Date(),

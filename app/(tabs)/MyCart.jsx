@@ -349,6 +349,7 @@ const MyCart = () => {
       baseItemId: item.id, // Always track the base item ID
       createdAt: new Date(),
       updatedAt: new Date(),
+      buyingLimit: Number(item?.buyingLimit || 0) || 0
     };
 
     try {
@@ -384,6 +385,13 @@ const MyCart = () => {
   const handleIncrementWithUpdate = async (itemId) => {
     try {
       const itemRef = doc(db, "customers", customerMobileNumber, "cart", vendorMobileNumber, "items", itemId);
+      const itemDoc = await getDoc(itemRef)
+      const itemSnap = itemDoc.data()
+
+      if (Number(itemSnap?.quantity) === Number(itemSnap?.buyingLimit || 0)) {
+        alert(`Maximum quantity - 'limit: ${itemSnap?.buyingLimit}' reached for '${itemSnap?.name} ${itemSnap?.variantName ? ' - ' + itemSnap?.variantName : ''}'.\n\nCan't add more quantity.`)
+        return
+      }
       await updateDoc(itemRef, {
         quantity: increment(1),
         updatedAt: new Date(),

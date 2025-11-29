@@ -363,6 +363,7 @@ const MyCartForCustomisedQRModal = ({ cartItems, cartCount, cartTotal, fetchCart
                 image: item?.images?.[0] || null,
                 createdAt: new Date(),
                 updatedAt: new Date(),
+                buyingLimit: Number(item?.buyingLimit || 0) || 0
             };
         }
 
@@ -374,6 +375,10 @@ const MyCartForCustomisedQRModal = ({ cartItems, cartCount, cartTotal, fetchCart
     const handleIncrementWithUpdate = async (itemId) => {
         let localCart = JSON.parse(localStorage.getItem('cartItems') || '{}');
         if (localCart[vendorMobileNumber] && localCart[vendorMobileNumber][itemId]) {
+            if (Number(localCart[vendorMobileNumber][itemId].quantity) === Number(localCart[vendorMobileNumber][itemId]?.buyingLimit || 0)) {
+                alert(`Maximum quantity - 'limit: ${localCart[vendorMobileNumber][itemId]?.buyingLimit}' reached for '${localCart[vendorMobileNumber][itemId]?.name} ${localCart[vendorMobileNumber][itemId]?.variantName ? ' - ' + localCart[vendorMobileNumber][itemId]?.variantName : ''}'.\n\nCan't add more quantity.`)
+                return
+            }
             localCart[vendorMobileNumber][itemId].quantity += 1;
             localCart[vendorMobileNumber][itemId].updatedAt = new Date();
             localStorage.setItem('cartItems', JSON.stringify(localCart));
