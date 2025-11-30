@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Shadow } from 'react-native-shadow-2';
 import { encryptData } from '../context/hashing';
 
-const MultipleItemsCard = ({ item, innerIndex, cartItems, onAddToCart, onIncrement, onDecrement, isVariantsSelectorDisabled = false, variantId, itemIdForItemDetailModal = null, setItemIdForItemDetailModal }) => {
+const MultipleItemsCard = ({ item, innerIndex, cartItems, onAddToCart, onIncrement, onDecrement, isVariantsSelectorDisabled = false, variantId, itemIdForItemDetailModal = null, setItemIdForItemDetailModal, vendorFullData }) => {
     // const [isItemImageModalVisible, setIsItemImageModalVisible] = useState(false)
     const [isItemDetailsModalVisible, setIsItemDetailsModalVisible] = useState(false)
     const [selectedImage, setSelectedImage] = useState(item?.images?.[0] || null)
@@ -144,11 +144,120 @@ const MultipleItemsCard = ({ item, innerIndex, cartItems, onAddToCart, onIncreme
         }
     };
 
+    // const handleShare = async () => {
+    //     try {
+    //         const currentUrl = new URL(window.location.href);
+    //         const vendorParam = currentUrl.searchParams.get('vendor');
+    //         const vendorLink = `https://customers.unoshops.com/Vendors?vendor=${vendorParam}&itemCard=${encryptData(item?.variants?.length > 0 ? selectedVariant?.id : item.id)}`;
+
+    //         const imageUrl = item?.images?.[0];
+
+    //         if (!imageUrl) {
+    //             throw new Error("No image available to share");
+    //         }
+
+    //         // Fetch image and convert to Blob
+    //         const response = await fetch(imageUrl);
+    //         if (!response.ok) throw new Error("Failed to fetch image");
+    //         const blob = await response.blob();
+
+    //         // Create File with proper name and type
+    //         const file = new File([blob], `${item.name.replace(/\s+/g, '_')}.jpg`, {
+    //             type: blob.type || 'image/jpeg',
+    //         });
+
+    //         // NOW check if sharing files is supported
+    //         const shareData = {
+    //             title: item.name,
+    //             text: `Check out this product: ${item.name} on UnoShops.`,
+    //             url: vendorLink,
+    //             files: [file],
+    //         };
+
+    //         const canShareFiles = navigator.share && navigator.canShare && navigator.canShare(shareData);
+
+    //         if (canShareFiles) {
+    //             await navigator.share(shareData);
+    //         } else {
+    //             // Fallback: Share without file
+    //             await navigator.share({
+    //                 title: item.name,
+    //                 text: `Check out this product: ${item.name} on UnoShops.`,
+    //                 url: vendorLink,
+    //             });
+    //         }
+    //     } catch (error) {
+    //         console.error('Sharing failed:', error);
+
+    //         // Final fallback: Copy link
+    //         const vendorLink = `${window.location.origin}${window.location.pathname}?itemCard=${encryptData(item.id)}`;
+    //         if (navigator.clipboard) {
+    //             await navigator.clipboard.writeText(vendorLink);
+    //             alert("Link copied to clipboard!");
+    //         } else {
+    //             alert("Sharing not supported. Link: " + vendorLink);
+    //         }
+    //     }
+    // };
+
+    const shortenUrl = async (longUrl, timeoutMs = 8000) => {
+        // CORRECT LIVE URL (as of your latest deploy)
+        const API_URL = "https://shortener-rvt7os5vva-uc.a.run.app/api/shorten";
+
+        // Your secret API key from shortener.js
+        const API_KEY = "9m3ee5n2a0k0s0h3i6_0ravi";  // Change this to a strong key!
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+        try {
+            const response = await fetch(API_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-api-key": API_KEY,
+                },
+                body: JSON.stringify({ url: longUrl }),
+                signal: controller.signal,
+                mode: "cors"
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.warn("Shortener API error:", response.status, errorText);
+                return longUrl;
+            }
+
+            const data = await response.json();
+
+            if (data.success && data.shortUrl) {
+                console.log("Shortened:", data.shortUrl);
+                return data.shortUrl; // e.g., https://go.unoshops.com/aB3k9m
+            } else {
+                console.warn("Shortener returned invalid data:", data);
+                return longUrl;
+            }
+        } catch (error) {
+            clearTimeout(timeoutId);
+
+            if (error.name === "AbortError") {
+                console.warn("Shorten request timed out after", timeoutMs + "ms");
+            } else {
+                console.warn("Failed to shorten URL:", error.message);
+            }
+
+            return longUrl; // Always fall back safely
+        }
+    };
+
     const handleShare = async () => {
         try {
             const currentUrl = new URL(window.location.href);
             const vendorParam = currentUrl.searchParams.get('vendor');
-            const vendorLink = `https://customers.unoshops.com/Vendors?vendor=${vendorParam}&itemCard=${encryptData(item?.variants?.length > 0 ? selectedVariant?.id : item.id)}`;
+            const itemId = item?.variants?.length > 0 ? selectedVariant?.id : item.id;
+            const encryptedId = encryptData(itemId);
 
             const imageUrl = item?.images?.[0];
 
@@ -156,46 +265,52 @@ const MultipleItemsCard = ({ item, innerIndex, cartItems, onAddToCart, onIncreme
                 throw new Error("No image available to share");
             }
 
-            // Fetch image and convert to Blob
-            const response = await fetch(imageUrl);
-            if (!response.ok) throw new Error("Failed to fetch image");
-            const blob = await response.blob();
+            // Extract image path from Firebase Storage URL
+            let imagePath = '';
+            try {
+                const urlObj = new URL(imageUrl);
+                if (urlObj.pathname.includes('/o/')) {
+                    const pathPart = urlObj.pathname.split('/o/')[1];
+                    imagePath = decodeURIComponent(pathPart);
+                } else {
+                    imagePath = imageUrl;
+                }
+            } catch (e) {
+                imagePath = imageUrl;
+            }
 
-            // Create File with proper name and type
-            const file = new File([blob], `${item.name.replace(/\s+/g, '_')}.jpg`, {
-                type: blob.type || 'image/jpeg',
-            });
-
-            // NOW check if sharing files is supported
+            // Create share URL with ALL necessary parameters for Firebase function
+            const shareUrl = `https://dl.unoshops.com/share?path=${encodeURIComponent(imagePath)}&itemname=${encodeURIComponent(item.name)}&vendor=${encodeURIComponent(vendorParam)}&itemId=${encodeURIComponent(itemId)}&encryptedId=${encodeURIComponent(encryptedId)}`;
+            const shortUrl = await shortenUrl(shareUrl);
             const shareData = {
                 title: item.name,
-                text: `Check out this product: ${item.name} on UnoShops.`,
-                url: vendorLink,
-                files: [file],
+                text: `${item?.name}\n*Get it for only ₹${item?.variants?.length > 0 ? selectedVariant?.prices?.[0]?.variantSellingPrice : item?.prices?.[0]?.sellingPrice} /* ${item?.variants?.length > 0 ? selectedVariant?.prices?.[0]?.variantMeasurement : item?.prices?.[0]?.measurement}\nSold by: ${vendorFullData?.businessName}.【 T&C 】\n`,
+                url: shortUrl,
             };
 
-            const canShareFiles = navigator.share && navigator.canShare && navigator.canShare(shareData);
-
-            if (canShareFiles) {
+            if (navigator.share) {
                 await navigator.share(shareData);
+            } else if (navigator.clipboard) {
+                await navigator.clipboard.writeText(shareUrl);
+                alert("Share link copied to clipboard!");
             } else {
-                // Fallback: Share without file
-                await navigator.share({
-                    title: item.name,
-                    text: `Check out this product: ${item.name} on UnoShops.`,
-                    url: vendorLink,
-                });
+                alert(`Share this link: ${shareUrl}`);
             }
         } catch (error) {
             console.error('Sharing failed:', error);
 
-            // Final fallback: Copy link
-            const vendorLink = `${window.location.origin}${window.location.pathname}?itemCard=${encryptData(item.id)}`;
+            // Error fallback
+            const currentUrl = new URL(window.location.href);
+            const vendorParam = currentUrl.searchParams.get('vendor');
+            const itemId = item?.variants?.length > 0 ? selectedVariant?.id : item.id;
+            const encryptedId = encryptData(itemId);
+            const fallbackUrl = `https://customers.unoshops.com/Vendors?vendor=${vendorParam}&itemCard=${encryptedId}`;
+
             if (navigator.clipboard) {
-                await navigator.clipboard.writeText(vendorLink);
-                alert("Link copied to clipboard!");
+                await navigator.clipboard.writeText(fallbackUrl);
+                alert("Direct link copied to clipboard!");
             } else {
-                alert("Sharing not supported. Link: " + vendorLink);
+                alert(`Share this link: ${fallbackUrl}`);
             }
         }
     };

@@ -1040,6 +1040,7 @@ const Vendors = () => {
                                       onAddToCart={handleAddToCartWithUpdate}
                                       onIncrement={handleIncrementWithUpdate}
                                       onDecrement={handleDecrementWithUpdate}
+                                      vendorFullData={vendorFullData}
                                     />
                                   </View>
                                 );
@@ -1062,6 +1063,7 @@ const Vendors = () => {
                               onAddToCart={handleAddToCartWithUpdate}
                               onIncrement={handleIncrementWithUpdate}
                               onDecrement={handleDecrementWithUpdate}
+                              vendorFullData={vendorFullData}
                             />
                           </View>
                         );

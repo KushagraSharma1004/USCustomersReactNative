@@ -277,7 +277,7 @@ const Home = () => {
     let adCounter = 0; // Track ad insertion count separately
 
     filteredProducts.forEach((pro, index) => {
-      if(!pro?.images?.[0] || pro?.images?.length <= 0){
+      if (!pro?.images?.[0] || pro?.images?.length <= 0) {
         return
       }
       productGroup.push(pro);
@@ -540,11 +540,63 @@ const Home = () => {
     }
   }, [selectedMode, activeVendorsForProducts, selectedCategoryId, fetchProductsForVendors]);
 
-  const handleShareItem = async (vendorMobileNumber, item) => {
+  const shortenUrl = async (longUrl, timeoutMs = 8000) => {
+    // CORRECT LIVE URL (as of your latest deploy)
+    const API_URL = "https://shortener-rvt7os5vva-uc.a.run.app/api/shorten";
+
+    // Your secret API key from shortener.js
+    const API_KEY = "9m3ee5n2a0k0s0h3i6_0ravi";  // Change this to a strong key!
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
     try {
-      // const currentUrl = new URL(window.location.href);
-      // const vendorParam = currentUrl.searchParams.get('vendor');
-      const vendorLink = `https://customers.unoshops.com/Vendors?vendor=${encodeURIComponent(encryptData(vendorMobileNumber))}&itemCard=${encryptData(item.id)}`;
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+        },
+        body: JSON.stringify({ url: longUrl }),
+        signal: controller.signal,
+        mode: "cors"
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.warn("Shortener API error:", response.status, errorText);
+        return longUrl;
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.shortUrl) {
+        console.log("Shortened:", data.shortUrl);
+        return data.shortUrl; // e.g., https://go.unoshops.com/aB3k9m
+      } else {
+        console.warn("Shortener returned invalid data:", data);
+        return longUrl;
+      }
+    } catch (error) {
+      clearTimeout(timeoutId);
+
+      if (error.name === "AbortError") {
+        console.warn("Shorten request timed out after", timeoutMs + "ms");
+      } else {
+        console.warn("Failed to shorten URL:", error.message);
+      }
+
+      return longUrl; // Always fall back safely
+    }
+  };
+
+  const handleShareItem = async (vendorMobileNumber, businessName, item) => {
+    try {
+      const vendorParam = encryptData(vendorMobileNumber);
+      const itemId = item?.variants?.length > 0 ? item?.variants?.[0]?.id : item.id;
+      const encryptedId = encryptData(itemId);
 
       const imageUrl = item?.images?.[0];
 
@@ -552,46 +604,51 @@ const Home = () => {
         throw new Error("No image available to share");
       }
 
-      // Fetch image and convert to Blob
-      const response = await fetch(imageUrl);
-      if (!response.ok) throw new Error("Failed to fetch image");
-      const blob = await response.blob();
+      // Extract image path from Firebase Storage URL
+      let imagePath = '';
+      try {
+        const urlObj = new URL(imageUrl);
+        if (urlObj.pathname.includes('/o/')) {
+          const pathPart = urlObj.pathname.split('/o/')[1];
+          imagePath = decodeURIComponent(pathPart);
+        } else {
+          imagePath = imageUrl;
+        }
+      } catch (e) {
+        imagePath = imageUrl;
+      }
 
-      // Create File with proper name and type
-      const file = new File([blob], `${item.name.replace(/\s+/g, '_')}.jpg`, {
-        type: blob.type || 'image/jpeg',
-      });
-
-      // NOW check if sharing files is supported
+      // Create share URL with ALL necessary parameters for Firebase function
+      const shareUrl = `https://dl.unoshops.com/share?path=${encodeURIComponent(imagePath)}&itemname=${encodeURIComponent(item.name)}&vendor=${encodeURIComponent(vendorParam)}&itemId=${encodeURIComponent(itemId)}&encryptedId=${encodeURIComponent(encryptedId)}`;
+      const shortUrl = await shortenUrl(shareUrl);
       const shareData = {
         title: item.name,
-        text: `Check out this product: ${item.name} on UnoShops.`,
-        url: vendorLink,
-        files: [file],
+        text: `${item?.name}\n*Get it for only ₹${item?.variants?.length > 0 ? item?.variants?.[0]?.prices?.[0]?.variantSellingPrice : item?.prices?.[0]?.sellingPrice} /* ${item?.variants?.length > 0 ? item?.variants?.[0]?.prices?.[0]?.variantMeasurement : item?.prices?.[0]?.measurement}\nSold by: ${businessName}.【 T&C 】\n`,
+        url: shortUrl,
       };
 
-      const canShareFiles = navigator.share && navigator.canShare && navigator.canShare(shareData);
-
-      if (canShareFiles) {
+      if (navigator.share) {
         await navigator.share(shareData);
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(shareUrl);
+        alert("Share link copied to clipboard!");
       } else {
-        // Fallback: Share without file
-        await navigator.share({
-          title: item.name,
-          text: `Check out this product: ${item.name} on UnoShops.`,
-          url: vendorLink,
-        });
+        alert(`Share this link: ${shareUrl}`);
       }
     } catch (error) {
       console.error('Sharing failed:', error);
 
-      // Final fallback: Copy link
-      const vendorLink = `https://customers.unoshops.com/Vendors?vendor=${encodeURIComponent(encryptData(vendorMobileNumber))}&itemCard=${encryptData(item.id)}`;
+      // Error fallback
+      const vendorParam = encryptData(vendorMobileNumber);
+      const itemId = item?.variants?.length > 0 ? item?.variants?.[0]?.id : item.id;
+      const encryptedId = encryptData(itemId);
+      const fallbackUrl = `https://customers.unoshops.com/Vendors?vendor=${vendorParam}&itemCard=${encryptedId}`;
+
       if (navigator.clipboard) {
-        await navigator.clipboard.writeText(vendorLink);
-        alert("Link copied to clipboard!");
+        await navigator.clipboard.writeText(fallbackUrl);
+        alert("Direct link copied to clipboard!");
       } else {
-        alert("Sharing not supported. Link: " + vendorLink);
+        alert(`Share this link: ${fallbackUrl}`);
       }
     }
   };
@@ -1009,7 +1066,7 @@ const Home = () => {
                             className="flex-1 m-[2px] border border-gray-100 rounded-lg bg-white shadow-md min-h-[230px]"
                           >
                             <TouchableOpacity
-                              onPress={() => handleShareItem(product?.vendorMobileNumber, product)}
+                              onPress={() => handleShareItem(product?.vendorMobileNumber, product?.businessName, product)}
                               className='absolute z-50 top-[0px] right-[0px] items-center justify-center pl-[25px] pb-[25px]'
                               activeOpacity={0.7}
                               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
